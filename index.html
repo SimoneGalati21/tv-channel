@@ -11,25 +11,28 @@
     --rai: #2f6fde; --mediaset: #e0453a; --wbd: #2bb5a0; --altri: #8b6ad8;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { background: var(--bg); color: var(--text); height: 100%; overflow: hidden;
+  html, body { background: var(--bg); color: var(--text); min-height: 100%;
     font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
 
-  #grid-view { height: 100%; display: flex; flex-direction: column; padding: 2.2vw 3vw 0; }
-  header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 1.6vw; }
+  body.playing { overflow: hidden; }
+  #grid-view { padding: 0 3vw 3vw; }
+  header { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 2.2vw 0 1.2vw; display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 1.6vw; }
   header h1 { font-size: 2.4vw; font-weight: 600; letter-spacing: .02em; }
   header .hint { color: var(--muted); font-size: 1.05vw; }
   #clock { font-size: 2vw; color: var(--muted); font-variant-numeric: tabular-nums; }
 
-  #scroller { flex: 1; overflow: hidden; position: relative; }
-  #grid { display: flex; flex-wrap: wrap; gap: 1.1vw; padding: .6vw .6vw 4vw; transition: transform .18s ease-out; }
+  #grid { display: flex; flex-wrap: wrap; gap: 1.1vw; padding: .6vw; }
   .tile { width: calc((100% - 5 * 1.1vw) / 6); height: 8.4vw; background: var(--tile);
     border-radius: .8vw; position: relative; padding: 1vw 1.1vw; display: flex; flex-direction: column;
-    justify-content: flex-end; border: .22vw solid transparent; transition: transform .12s, border-color .12s, background .12s; }
+    justify-content: flex-end; border: .22vw solid transparent; transition: transform .12s, border-color .12s, background .12s; cursor: pointer; }
   .tile .num { position: absolute; top: .8vw; left: 1.1vw; font-size: 1.2vw; color: var(--muted); font-variant-numeric: tabular-nums; }
   .tile .bar { position: absolute; top: 0; left: 0; right: 0; height: .35vw; border-radius: .8vw .8vw 0 0; }
   .tile .name { font-size: 1.45vw; font-weight: 600; line-height: 1.15; }
-  .tile .fav { position: absolute; top: .7vw; right: 1vw; font-size: 1.2vw; color: #ffcc4d; }
-  .tile.focus { border-color: var(--focus); background: #252c40; transform: scale(1.06); z-index: 2; }
+  .tile .fav { position: absolute; top: .3vw; right: .3vw; font-size: 1.6vw; line-height: 1; color: #59617a;
+    padding: .5vw .7vw; border-radius: .6vw; }
+  .tile .fav.on { color: #ffcc4d; }
+  .tile .fav:hover { background: rgba(255,255,255,.12); color: #ffcc4d; }
+  .tile:hover, .tile.focus { border-color: var(--focus); background: #252c40; transform: scale(1.06); z-index: 2; }
   .g-rai .bar { background: var(--rai); } .g-mediaset .bar { background: var(--mediaset); }
   .g-wbd .bar { background: var(--wbd); } .g-altri .bar { background: var(--altri); }
 
@@ -45,6 +48,10 @@
   #numbuf { position: absolute; top: 3vw; right: 3vw; font-size: 4vw; font-weight: 700;
     background: rgba(10,12,18,.82); padding: .6vw 1.4vw; border-radius: .8vw; display: none; font-variant-numeric: tabular-nums; }
   .hidden { opacity: 0; }
+  #controls { position: absolute; right: 3vw; bottom: 3vw; display: flex; gap: 1vw; transition: opacity .4s; }
+  #controls button { font: inherit; font-size: 1.6vw; font-weight: 600; color: var(--text); background: rgba(21,25,34,.9);
+    border: .22vw solid rgba(255,255,255,.25); border-radius: .8vw; padding: 1vw 1.8vw; cursor: pointer; }
+  #controls button:hover { border-color: #fff; background: #2a3248; }
 </style>
 </head>
 <body>
@@ -53,11 +60,11 @@
   <header>
     <div>
       <h1>TV Libera</h1>
-      <div class="hint">Frecce per scegliere · OK per guardare · tieni premuto OK o tasto giallo per i preferiti · numeri per andare al canale</div>
+      <div class="hint">Clicca un canale per guardarlo · ☆ per metterlo tra i preferiti · porta il puntatore in basso per scorrere</div>
     </div>
     <div style="text-align:right"><div id="clock"></div><div id="env" class="hint" style="font-size:.85vw"></div></div>
   </header>
-  <div id="scroller"><div id="grid"></div></div>
+  <div id="grid"></div>
 </div>
 
 <div id="player-view">
@@ -65,6 +72,11 @@
   <div id="osd"><span class="num"></span><span class="name"></span><span class="state"></span></div>
   <div id="msg"></div>
   <div id="numbuf"></div>
+  <div id="controls">
+    <button id="b-list">☰ Canali</button>
+    <button id="b-prev">▲ Precedente</button>
+    <button id="b-next">▼ Successivo</button>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
@@ -155,7 +167,7 @@ function render() {
     var c = LIST[i];
     html += '<div class="tile g-' + c[2] + (i === focusIdx ? " focus" : "") + '" data-i="' + i + '">' +
       '<div class="bar"></div><div class="num">' + c[0] + '</div>' +
-      (isFav(c[0]) ? '<div class="fav">★</div>' : "") +
+      '<div class="fav' + (isFav(c[0]) ? ' on">★' : '">☆') + '</div>' +
       '<div class="name">' + c[1] + '</div></div>';
   }
   gridEl.innerHTML = html;
@@ -169,15 +181,18 @@ function setFocus(i) {
   scrollToFocus();
 }
 function scrollToFocus() {
-  var el = gridEl.children[focusIdx]; if (!el) return;
-  var row = Math.floor(focusIdx / COLS), rowH = el.offsetHeight + el.offsetTop - (gridEl.children[0].offsetTop);
-  var h = el.offsetHeight * 1.13, view = document.getElementById("scroller").offsetHeight;
-  var offset = Math.max(0, row * h - view / 2 + h);
-  gridEl.style.transform = "translateY(" + (-offset) + "px)";
+  var el = gridEl.children[focusIdx]; if (!el || mode !== "grid") return;
+  var r = el.getBoundingClientRect(), top = document.querySelector("header").offsetHeight;
+  if (r.top < top) window.scrollBy(0, r.top - top - 10);
+  else if (r.bottom > window.innerHeight) window.scrollBy(0, r.bottom - window.innerHeight + 10);
 }
 gridEl.addEventListener("click", function (e) {
+  var star = e.target.className && String(e.target.className).indexOf("fav") === 0;
   var t = e.target; while (t && t !== gridEl && !t.getAttribute("data-i")) t = t.parentNode;
-  if (t && t.getAttribute) { setFocus(+t.getAttribute("data-i")); play(focusIdx); }
+  if (!t || t === gridEl || !t.getAttribute) return;
+  focusIdx = +t.getAttribute("data-i");
+  if (star) { toggleFav(); return; }
+  play(focusIdx);
 });
 
 // ---------- player ----------
@@ -190,8 +205,10 @@ function play(i) {
   if (i < 0) i = LIST.length - 1; if (i >= LIST.length) i = 0;
   current = i; var c = LIST[i], url = c[3];
   mode = "player";
+  gridScroll = window.pageYOffset || 0;
   document.getElementById("grid-view").style.display = "none";
   document.getElementById("player-view").style.display = "block";
+  document.body.className = "playing"; showControls();
   hideMsg(); showOsd("Caricamento…");
   stopPlayback();
 
@@ -267,7 +284,7 @@ video.addEventListener("error", function () {
 });
 function fail() {
   clearTimeout(startTimer); playId++;
-  showMsg("Questo canale non parte ora.<br>Su/Giù per cambiare canale, Indietro per la lista." +
+  showMsg("Questo canale non parte ora.<br>Usa i pulsanti in basso per cambiare canale o tornare alla lista." +
     '<div style="margin-top:1vw;font-size:1.05vw;color:#8a93a8;text-align:left">' +
     tried.join("<br>") + "<br>" + envText() + "</div>");
   showOsd("non disponibile");
@@ -283,9 +300,25 @@ function hideMsg() { document.getElementById("msg").style.display = "none"; }
 function backToGrid() {
   stopPlayback(); mode = "grid";
   document.getElementById("player-view").style.display = "none";
-  document.getElementById("grid-view").style.display = "flex";
+  document.getElementById("grid-view").style.display = "block";
+  document.body.className = ""; window.scrollTo(0, gridScroll);
   setFocus(current < 0 ? 0 : current);
 }
+
+// ---------- pulsanti a schermo (puntatore della TV) ----------
+var gridScroll = 0, ctrlTimer = null;
+function showControls() {
+  var c = document.getElementById("controls"); c.className = ""; clearTimeout(ctrlTimer);
+  ctrlTimer = setTimeout(function () { c.className = "hidden"; }, 5000);
+}
+document.getElementById("player-view").addEventListener("mousemove", showControls);
+document.getElementById("player-view").addEventListener("click", function (e) {
+  var id = e.target.id;
+  if (id === "b-list") backToGrid();
+  else if (id === "b-prev") play(current - 1);
+  else if (id === "b-next") play(current + 1);
+  else { showControls(); showOsd(""); }
+});
 
 // ---------- numeri ----------
 function typeNum(d) {
@@ -348,7 +381,7 @@ function tick() {
   document.getElementById("clock").textContent = (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
 }
 tick(); setInterval(tick, 10000);
-document.getElementById("env").textContent = envText() + " · v2";
+document.getElementById("env").textContent = envText() + " · v3";
 render();
 </script>
 </body>
