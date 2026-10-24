@@ -1,24 +1,38 @@
 // Scarica la programmazione di oggi e domani e la salva in epg.json
 // (usato dall'app per mostrare "ora in onda" e "a seguire").
-// Fonti: guida TV Sky (JSON) e SuperGuidaTV (HTML) per i canali che Sky non ha.
+// Per ogni canale si provano le fonti in ordine: la prima con dati vince.
 import { load } from "cheerio";
 import { readFileSync, writeFileSync } from "node:fs";
 
-// numero canale nell'app -> fonte
-const SKY = {
-  1: 899, 2: 898, 3: 897, 4: 10464, 5: 10354, 6: 10454, 7: 319, 8: 8195, 20: 10458,
-  21: 6622, 22: 10467, 23: 6607, 24: 6608, 25: 6623, 27: 11342, 28: 7588, 29: 6624,
-  30: 10466, 34: 10893, 35: 10470, 36: 6885, 40: 6628, 42: 6629, 43: 6609, 46: 8132,
-  47: 6460, 48: 895, 51: 10473, 54: 6630, 55: 10465, 58: 807, 64: 6000, 69: 462, 70: 9833
-};
-const SGT = {
-  9: "nove/238", 31: "real-time/255", 33: "foodnetwork/431", 37: "warner-tv/1344181813",
-  38: "giallo/244", 39: "top-crime/193", 49: "italia-2/191", 52: "dmax/256",
-  56: "hgtv-homegarden/575", 57: "rai-scuola/230", 60: "sportitalia/54"
+const S = {
+  1: [["rai", "rai-1"], ["sky", 899]], 2: [["rai", "rai-2"], ["sky", 898]], 3: [["rai", "rai-3"], ["sky", 897]],
+  4: [["ms", "R4"], ["sky", 10464]], 5: [["ms", "C5"], ["sky", 10354]], 6: [["ms", "I1"], ["sky", 10454]],
+  7: [["sky", 319]], 8: [["sky", 8195]],
+  9: [["gtv", "68748486/nove"], ["sgt", "nove/238"]],
+  20: [["ms", "LB"], ["sky", 10458]], 21: [["rai", "rai-4"], ["sky", 6622]], 22: [["ms", "KI"], ["sky", 10467]],
+  23: [["rai", "rai-5"], ["sky", 6607]], 24: [["rai", "rai-movie"], ["sky", 6608]], 25: [["rai", "rai-premium"], ["sky", 6623]],
+  27: [["ms", "TS"], ["sky", 11342]], 28: [["sky", 7588]], 29: [["sky", 6624]], 30: [["ms", "KA"], ["sky", 10466]],
+  31: [["gtv", "82847384/real-time"], ["sgt", "real-time/255"]],
+  33: [["gtv", "70787384/food-network"], ["sgt", "foodnetwork/431"]],
+  34: [["ms", "B6"], ["sky", 10893]], 35: [["ms", "FU"], ["sky", 10470]], 36: [["sky", 6885]],
+  37: [["sgt", "warner-tv/1344181813"]],
+  38: [["gtv", "71737979/giallo"], ["sgt", "giallo/244"]],
+  39: [["ms", "LT"], ["sky", 10468]], 40: [["ms", "KB"], ["sky", 6628]],
+  42: [["rai", "rai-gulp"], ["sky", 6629]], 43: [["rai", "rai-yoyo"], ["sky", 6609]],
+  46: [["ms", "LA"], ["sky", 8132]], 47: [["sky", 6460]], 48: [["rai", "rai-news-24"], ["sky", 895]],
+  49: [["ms", "I2"], ["sgt", "italia-2/191"]], 51: [["ms", "KF"], ["sky", 10473]],
+  52: [["gtv", "68776588/dmax-italia"], ["sgt", "dmax/256"]],
+  54: [["rai", "rai-storia"], ["sky", 6630]], 55: [["ms", "KQ"], ["sky", 10465]],
+  56: [["gtv", "72717384/hgtv-it"], ["sgt", "hgtv-homegarden/575"]],
+  57: [["rai", "rai-scuola"], ["sgt", "rai-scuola/230"]], 58: [["rai", "rai-sport"], ["sky", 807]],
+  60: [["gtv", "83807384/sport-italia"], ["sgt", "sportitalia/54"]],
+  64: [["sky", 6000]], 69: [["sky", 462]], 70: [["sky", 9833]]
 };
 
-const UA = { "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140 Safari/537.36" };
+const UA = { "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140 Safari/537.36",
+  "Accept-Language": "it-IT,it;q=0.9" };
 const sec = d => Math.round(new Date(d).getTime() / 1000);
+const clean = t => String(t || "").replace(/\s+-\s+Stag\.?\s.*$/i, "").replace(/\s+S\d+\s?E\d+\b.*$/, "").replace(/\s+/g, " ").trim();
 
 // ora "HH:mm" del giorno YYYY-MM-DD a Roma -> secondi UTC
 function romeToEpoch(ymd, hhmm) {
@@ -30,70 +44,105 @@ function romeToEpoch(ymd, hhmm) {
   const asRome = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute);
   return Math.round((guess - (asRome - guess)) / 1000);
 }
-function romeYmd(offsetDays) {
-  const d = new Date(Date.now() + offsetDays * 86400000);
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome" }).format(d);
-}
+const romeYmd = off => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome" }).format(new Date(Date.now() + off * 86400000));
+const nextDay = ymd => new Date(Date.parse(ymd + "T12:00:00Z") + 86400000).toISOString().slice(0, 10);
 
+// --- parser ---
 export function parseSky(json) {
   const data = typeof json === "string" ? JSON.parse(json) : json;
   return (data.events || []).filter(e => e.starttime && e.endtime)
-    .map(e => [sec(e.starttime), sec(e.endtime), (e.eventTitle || "").trim()]);
+    .map(e => [sec(e.starttime), sec(e.endtime), clean((e.content && e.content.contentTitle) || e.eventTitle)]);
 }
-
-export function parseSgt(html, ymd) {
-  const $ = load(html), out = [];
+export function parseMs(json) {
+  const data = typeof json === "string" ? JSON.parse(json) : json;
+  const l = (((data.response || {}).entries || [])[0] || {}).listings || [];
+  return l.filter(x => x.startTime && x.endTime)
+    .map(x => [Math.round(x.startTime / 1000), Math.round(x.endTime / 1000), clean(x["mediasetlisting$epgTitle"] || (x.program || {}).title)]);
+}
+export function parseRai(json, ymd) {
+  const data = typeof json === "string" ? JSON.parse(json) : json;
   let day = ymd, prev = null;
-  $(".sgtvchannelplan_divContainer > .sgtvchannelplan_divTableRow").has("#containerInfoEvent").each((i, el) => {
-    const $el = $(el);
-    const hh = $el.find(".sgtvchannelplan_hoursCell").clone().children(".sgtvOnairSpan").remove().end().text().trim();
-    const title = $el.find(".sgtvchannelplan_spanInfoNextSteps").text().trim();
-    if (!/^\d{1,2}:\d{2}$/.test(hh) || !title) return;
-    let start = romeToEpoch(day, hh);
-    if (prev && start < prev[0]) { // passata la mezzanotte
-      const d = new Date(Date.UTC(...day.split("-").map((v, k) => k === 1 ? v - 1 : +v)) + 86400000);
-      day = d.toISOString().slice(0, 10); start = romeToEpoch(day, hh);
-    }
-    if (prev) prev[1] = start;
-    prev = [start, start + 1800, title]; out.push(prev);
+  return (data.events || []).filter(e => e.name && e.hour && e.duration_in_minutes).map(e => {
+    let start = romeToEpoch(day, e.hour);
+    if (prev && start < prev) { day = nextDay(day); start = romeToEpoch(day, e.hour); }
+    prev = start;
+    return [start, start + parseInt(e.duration_in_minutes, 10) * 60, clean(e.name)];
   });
+}
+// tabelle HTML con orario + titolo; la fine è l'inizio del successivo
+function chain(rows, ymd) {
+  const out = []; let day = ymd, prev = null;
+  for (const [hh, title] of rows) {
+    if (!/^\d{1,2}:\d{2}$/.test(hh) || !title) continue;
+    let start = romeToEpoch(day, hh);
+    if (prev && start < prev[0]) { day = nextDay(day); start = romeToEpoch(day, hh); }
+    if (prev) prev[1] = start;
+    prev = [start, start + 1800, clean(title)]; out.push(prev);
+  }
   return out;
+}
+export function parseGtv(html, ymd) {
+  const $ = load(html);
+  return chain($("table.table > tbody > tr").toArray().map(tr => [$(tr).find("td").eq(0).text().trim(), $(tr).find("td").eq(1).text().trim()]), ymd);
+}
+export function parseSgt(html, ymd) {
+  const $ = load(html);
+  return chain($(".sgtvchannelplan_divContainer > .sgtvchannelplan_divTableRow").has("#containerInfoEvent").toArray().map(el => {
+    const $el = $(el);
+    return [$el.find(".sgtvchannelplan_hoursCell").clone().children(".sgtvOnairSpan").remove().end().text().trim(),
+      $el.find(".sgtvchannelplan_spanInfoNextSteps").text().trim()];
+  }), ymd);
 }
 
 async function get(url) {
   const r = await fetch(url, { headers: UA });
-  if (!r.ok) throw new Error("HTTP " + r.status + " " + url);
+  if (!r.ok) throw new Error("HTTP " + r.status);
   return r.text();
+}
+const join2 = (a, b) => { if (a.length && b.length && a[a.length - 1][1] > b[0][0]) a[a.length - 1][1] = b[0][0]; return a.concat(b); };
+
+async function fromSource([kind, id], today, tomorrow) {
+  const dmy = ymd => ymd.split("-").reverse().join("-");
+  if (kind === "sky") {
+    return parseSky(await get(`https://apid.sky.it/gtv/v1/events?from=${today}T00:00:00Z&to=${nextDay(tomorrow)}T00:00:00Z&pageSize=999&pageNum=0&env=DTH&channels=${id}`));
+  }
+  if (kind === "ms") {
+    const a = romeToEpoch(today, "00:00") * 1000, b = romeToEpoch(nextDay(tomorrow), "00:00") * 1000;
+    return parseMs(await get(`https://api-ott-prod-fe.mediaset.net/PROD/play/feed/allListingFeedEpg/v2.0?byListingTime=${a}~${b}&byCallSign=${id}`));
+  }
+  if (kind === "rai") {
+    const a = parseRai(await get(`https://www.raiplay.it/palinsesto/app/${id}/${dmy(today)}.json`), today);
+    let b = []; try { b = parseRai(await get(`https://www.raiplay.it/palinsesto/app/${id}/${dmy(tomorrow)}.json`), tomorrow); } catch (e) {}
+    return join2(a, b);
+  }
+  if (kind === "gtv") {
+    const a = parseGtv(await get(`https://www.guida.tv/programmi-tv/palinsesto/canale/${id}.html?dt=${today}`), today);
+    let b = []; try { b = parseGtv(await get(`https://www.guida.tv/programmi-tv/palinsesto/canale/${id}.html?dt=${tomorrow}`), tomorrow); } catch (e) {}
+    return join2(a, b);
+  }
+  if (kind === "sgt") {
+    const a = parseSgt(await get(`https://www.superguidatv.it/programmazione-canale/oggi/guida-programmi-tv-${id}/`), today);
+    let b = []; try { b = parseSgt(await get(`https://www.superguidatv.it/programmazione-canale/domani/guida-programmi-tv-${id}/`), tomorrow); } catch (e) {}
+    return join2(a, b);
+  }
+  return [];
 }
 
 async function main() {
-  const today = romeYmd(0), tomorrow = romeYmd(1), after = romeYmd(2);
-  const guide = {}, errors = [];
+  const today = romeYmd(0), tomorrow = romeYmd(1), guide = {}, log = [];
+  const now = Math.round(Date.now() / 1000), cut = now - 3 * 3600;
 
-  for (const [num, id] of Object.entries(SKY)) {
-    try {
-      const url = `https://apid.sky.it/gtv/v1/events?from=${today}T00:00:00Z&to=${after}T00:00:00Z&pageSize=999&pageNum=0&env=DTH&channels=${id}`;
-      guide[num] = parseSky(await get(url));
-    } catch (e) { errors.push(num + ": " + e.message); }
-  }
-  for (const [num, id] of Object.entries(SGT)) {
-    try {
-      const a = parseSgt(await get(`https://www.superguidatv.it/programmazione-canale/oggi/guida-programmi-tv-${id}/`), today);
-      let b = [];
-      try { b = parseSgt(await get(`https://www.superguidatv.it/programmazione-canale/domani/guida-programmi-tv-${id}/`), tomorrow); } catch (e) {}
-      if (a.length && b.length) a[a.length - 1][1] = b[0][0];
-      guide[num] = a.concat(b);
-    } catch (e) { errors.push(num + ": " + e.message); }
-  }
+  await Promise.all(Object.entries(S).map(async ([num, sources]) => {
+    for (const src of sources) {
+      try {
+        const progs = (await fromSource(src, today, tomorrow)).filter(p => p[1] > cut && p[2]).sort((x, y) => x[0] - y[0]);
+        if (progs.length) { guide[num] = progs; log.push(num + " ok " + src[0]); return; }
+        log.push(num + " " + src[0] + ": vuoto");
+      } catch (e) { log.push(num + " " + src[0] + ": " + e.message); }
+    }
+  }));
 
-  // tieni solo da 3 ore fa in poi, ordinato
-  const cut = Math.round(Date.now() / 1000) - 3 * 3600;
-  for (const k of Object.keys(guide)) {
-    guide[k] = guide[k].filter(p => p[1] > cut).sort((x, y) => x[0] - y[0]);
-    if (!guide[k].length) delete guide[k];
-  }
-
-  // se una fonte fallisce, conserva i dati precedenti di quel canale
+  // se tutte le fonti di un canale falliscono, conserva i dati precedenti ancora validi
   try {
     const old = JSON.parse(readFileSync("epg.json", "utf8")).ch || {};
     for (const k of Object.keys(old)) if (!guide[k]) {
@@ -102,9 +151,10 @@ async function main() {
     }
   } catch (e) {}
 
-  writeFileSync("epg.json", JSON.stringify({ updated: Math.round(Date.now() / 1000), ch: guide }));
-  console.log("Canali con guida:", Object.keys(guide).length, "| errori:", errors.length);
-  errors.forEach(e => console.log("  " + e));
+  log.sort((a, b) => parseInt(a) - parseInt(b));
+  writeFileSync("epg.json", JSON.stringify({ updated: now, ch: guide, log }));
+  console.log("Canali con guida:", Object.keys(guide).length, "su", Object.keys(S).length);
+  log.forEach(l => console.log("  " + l));
 }
 
 if (process.argv[1] && process.argv[1].endsWith("build.mjs")) main();
