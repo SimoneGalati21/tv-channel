@@ -382,7 +382,41 @@ function tick() {
 }
 tick(); setInterval(tick, 10000);
 document.getElementById("env").textContent = envText() + " · v3";
-render();
+if (location.search.indexOf("test") !== -1) runTest(); else render();
+
+// ---------- test di tutti i canali (apri la pagina con ?test) ----------
+function runTest() {
+  document.querySelector(".hint").textContent = "Test dei canali in corso… (" + CHANNELS.length + " canali)";
+  var rows = [], done = 0;
+  gridEl.style.display = "block";
+  gridEl.innerHTML = '<table id="t" style="width:100%;border-collapse:collapse;font-size:15px"></table>';
+  var t = document.getElementById("t");
+  CHANNELS.forEach(function (c, i) {
+    var tr = document.createElement("tr");
+    tr.innerHTML = '<td style="padding:4px 10px;color:#8a93a8">' + c[0] + '</td><td style="padding:4px 10px">' + c[1] +
+      '</td><td style="padding:4px 10px" id="r' + i + '">…</td>';
+    t.appendChild(tr);
+    var cell = function (txt, ok) {
+      var el = document.getElementById("r" + i); el.textContent = txt; el.style.color = ok ? "#4ade80" : "#f87171";
+      rows[i] = c[0] + " " + c[1] + ": " + txt;
+      if (++done === CHANNELS.length) {
+        var okN = 0; for (var k = 0; k < rows.length; k++) if (rows[k].indexOf(": OK") !== -1) okN++;
+        document.querySelector(".hint").textContent = "Test finito: " + okN + " su " + CHANNELS.length + " canali raggiungibili.";
+      }
+    };
+    var timer = setTimeout(function () { cell("nessuna risposta in 12s", false); cell = function () {}; }, 12000);
+    fetch(c[3], { cache: "no-store" }).then(function (r) {
+      return r.text().then(function (body) {
+        clearTimeout(timer);
+        var head = body.slice(0, 300);
+        var looks = head.indexOf("#EXTM3U") !== -1 || head.indexOf("<MPD") !== -1 || head.indexOf("<?xml") !== -1;
+        if (r.ok && looks) cell("OK", true);
+        else if (r.ok) cell("risponde ma non è un video (" + head.replace(/\s+/g, " ").slice(0, 60) + ")", false);
+        else cell("HTTP " + r.status, false);
+      });
+    }).catch(function (e) { clearTimeout(timer); cell("bloccato o indirizzo morto", false); });
+  });
+}
 </script>
 </body>
 </html>
