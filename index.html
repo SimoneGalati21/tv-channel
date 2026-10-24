@@ -124,10 +124,8 @@ var CHANNELS = [
   [38, "Giallo", "wbd", [wb("GIALLO"), wbd(5, 1838, "giallo")]],
   [39, "Top Crime", "mediaset", [msf("lt")]],
   [40, "Boing", "mediaset", [msf("kb")]],
-  [41, "K2", "wbd", [wb("K2"), wbd(6, 1839, "k2")]],
   [42, "Rai Gulp", "rai", [RAI + "746953"], rp("raigulp")],
   [43, "Rai Yoyo", "rai", [RAI + "746899"], rp("raiyoyo")],
-  [44, "Frisbee", "wbd", [wb("FRISBEE"), wbd(7, 1840, "frisbee")]],
   [46, "Cartoonito", "mediaset", [msf("la")]],
   [47, "Super!", "altri", ["https://vimnitaly.akamaized.net/hls/live/2094034/super/master.m3u8"]],
   [48, "Rai News 24", "rai", ["https://rainews1-live.akamaized.net/hls/live/598326/rainews1/rainews1/playlist.m3u8", RAI + "1"], rp("rainews24")],
@@ -139,7 +137,6 @@ var CHANNELS = [
   [56, "HGTV", "wbd", [wb("HGTV"), wbd(9, 1842, "hgtv")]],
   [57, "Rai Scuola", "rai", [RAI + "747011"], rp("raiscuola")],
   [58, "Rai Sport", "rai", [RAI + "358025"], rp("raisport")],
-  [59, "Motor Trend", "wbd", [wb("MOTORTREND"), wbd(10, 1843, "motortrend")]],
   [60, "Sportitalia", "altri", ["https://edge-001.streamup.eu/sportitalia/sihd_abr/playlist.m3u8", "https://sportsitalia-samsungitaly.amagi.tv/playlist.m3u8"]],
   [64, "SuperTennis", "altri", ["https://live-embed.supertennix.hiway.media/restreamer/supertennix_client/gpu-a-c0-16/restreamer/outgest/aa3673f1-e178-44a9-a947-ef41db73211a/manifest.m3u8"]],
   [69, "Deejay TV", "altri", ["https://4c4b867c89244861ac216426883d1ad0.msvdn.net/live/S85984808/sMO0tz9Sr2Rk/playlist.m3u8"]],
@@ -393,7 +390,7 @@ function tick() {
   document.getElementById("clock").textContent = (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
 }
 tick(); setInterval(tick, 10000);
-document.getElementById("env").textContent = envText() + " · v4";
+document.getElementById("env").textContent = envText() + " · v5";
 if (location.search.indexOf("test") !== -1) runTest(); else render();
 
 // ---------- test di tutti i canali (apri la pagina con ?test) ----------
