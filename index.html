@@ -22,12 +22,15 @@
   #clock { font-size: 2vw; color: var(--muted); font-variant-numeric: tabular-nums; }
 
   #grid { display: flex; flex-wrap: wrap; gap: 1.1vw; padding: .6vw; }
-  .tile { width: calc((100% - 5 * 1.1vw) / 6); height: 8.4vw; background: var(--tile);
+  .tile { width: calc((100% - 5 * 1.1vw) / 6); height: 10.6vw; background: var(--tile);
     border-radius: .8vw; position: relative; padding: 1vw 1.1vw; display: flex; flex-direction: column;
     justify-content: flex-end; border: .22vw solid transparent; transition: transform .12s, border-color .12s, background .12s; cursor: pointer; }
   .tile .num { position: absolute; top: .8vw; left: 1.1vw; font-size: 1.2vw; color: var(--muted); font-variant-numeric: tabular-nums; }
   .tile .bar { position: absolute; top: 0; left: 0; right: 0; height: .35vw; border-radius: .8vw .8vw 0 0; }
   .tile .name { font-size: 1.45vw; font-weight: 600; line-height: 1.15; }
+  .tile .now { font-size: 1vw; color: var(--muted); margin-top: .35vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 1.3vw; }
+  .tile .prog { height: .25vw; background: rgba(255,255,255,.12); border-radius: .2vw; margin-top: .45vw; overflow: hidden; }
+  .tile .prog i { display: block; height: 100%; background: var(--accent); }
   .tile .fav { position: absolute; top: .3vw; right: .3vw; font-size: 1.6vw; line-height: 1; color: #59617a;
     padding: .5vw .7vw; border-radius: .6vw; }
   .tile .fav.on { color: #ffcc4d; }
@@ -43,6 +46,9 @@
   #osd .num { font-size: 2.4vw; color: var(--muted); font-variant-numeric: tabular-nums; }
   #osd .name { font-size: 2.4vw; font-weight: 600; }
   #osd .state { font-size: 1.2vw; color: var(--muted); }
+  #osd { flex-wrap: wrap; max-width: 55vw; }
+  #osd .epg { flex-basis: 100%; font-size: 1.3vw; color: var(--text); line-height: 1.5; }
+  #osd .epg b { color: var(--muted); font-weight: 500; }
   #msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;
     font-size: 1.6vw; color: var(--text); background: rgba(10,12,18,.85); padding: 1.6vw 2.4vw; border-radius: .8vw; display: none; max-width: 60vw; }
   #numbuf { position: absolute; top: 3vw; right: 3vw; font-size: 4vw; font-weight: 700;
@@ -69,7 +75,7 @@
 
 <div id="player-view">
   <video id="video" autoplay playsinline></video>
-  <div id="osd"><span class="num"></span><span class="name"></span><span class="state"></span></div>
+  <div id="osd"><span class="num"></span><span class="name"></span><span class="state"></span><div class="epg"></div></div>
   <div id="msg"></div>
   <div id="numbuf"></div>
   <div id="controls">
@@ -169,7 +175,7 @@ function render() {
     html += '<div class="tile g-' + c[2] + (i === focusIdx ? " focus" : "") + '" data-i="' + i + '">' +
       '<div class="bar"></div><div class="num">' + c[0] + '</div>' +
       '<div class="fav' + (isFav(c[0]) ? ' on">★' : '">☆') + '</div>' +
-      '<div class="name">' + c[1] + '</div></div>';
+      '<div class="name">' + c[1] + '</div>' + tileEpg(c[0]) + '</div>';
   }
   gridEl.innerHTML = html;
   scrollToFocus();
@@ -205,7 +211,6 @@ function stopPlayback() {
 function play(i) {
   if (i < 0) i = LIST.length - 1; if (i >= LIST.length) i = 0;
   current = i; var c = LIST[i];
-  if (!c[3].length && c[4]) { location.href = c[4]; return; } // solo sito ufficiale (es. TV8)
   mode = "player";
   gridScroll = window.pageYOffset || 0;
   document.getElementById("grid-view").style.display = "none";
@@ -214,11 +219,20 @@ function play(i) {
   hideMsg(); showOsd("Caricamento…");
   stopPlayback();
 
-  tried = []; trySource(c[3], 0);
+  tried = []; stuck = 0; recover = 0;
+  if (!c[3].length) { // nessun flusso diretto (es. TV8): schermata con guida e pulsante
+    stopPlayback(); playId++;
+    showMsg(c[1] + " non ha una diretta da incorporare: si vede sul sito ufficiale." +
+      '<br><button id="b-web" style="margin-top:1.2vw;font:inherit;font-size:1.6vw;font-weight:600;color:#fff;background:#2f6fde;border:0;border-radius:.8vw;padding:1vw 2vw;cursor:pointer">Apri ' + c[1] + ' sul sito ufficiale</button>');
+    showOsd("solo sito ufficiale"); return;
+  }
+  trySource(c[3], 0);
 }
-function trySource(list, k) {
+function trySource(list, k, forceJs) {
   if (k >= list.length) return fail();
+  curList = list; curK = k;
   var url = list[k], next = function () { trySource(list, k + 1); };
+  if (forceJs && ENV.hlsjs && url.indexOf(".mpd") === -1) { playHlsJs(url, function () { playNative(url, next); }); return; }
   if (list.length > 1) tried.push("— fonte " + (k + 1) + " di " + list.length);
   if (url.indexOf(".mpd") !== -1) {
     if (ENV.nativeDash) playNative(url, function () { playDashJs(url, next); });
@@ -254,6 +268,7 @@ function armTimeout(id, label, next) {
 }
 function playNative(url, next) {
   stopPlayback(); var id = ++playId; nativeNext = { id: id, next: next };
+  engine = { kind: "native", list: curList, k: curK };
   video.src = url; startPlay(); armTimeout(id, "lettore TV", next);
 }
 function playHlsJs(url, next) {
@@ -266,6 +281,7 @@ function playHlsJs(url, next) {
     tried.push("hls.js: " + d.details + code);
     stopPlayback(); if (next) next(); else fail();
   });
+  engine = { kind: "hlsjs", list: curList, k: curK };
   hls.loadSource(url); hls.attachMedia(video); startPlay(); armTimeout(id, "hls.js", next);
 }
 function playDashJs(url, next) {
@@ -300,6 +316,7 @@ function fail() {
 function showOsd(state) {
   var c = LIST[current], o = document.getElementById("osd");
   o.children[0].textContent = c[0]; o.children[1].textContent = c[1]; o.children[2].textContent = state || "";
+  o.children[3].innerHTML = osdEpg(c[0]);
   o.className = ""; clearTimeout(osdTimer);
   osdTimer = setTimeout(function () { if (!state) o.className = "hidden"; }, 3500);
 }
@@ -312,6 +329,57 @@ function backToGrid() {
   document.body.className = ""; window.scrollTo(0, gridScroll);
   setFocus(current < 0 ? 0 : current);
 }
+
+// ---------- recupero automatico se il video si blocca ----------
+var engine = null, curList = null, curK = 0, stuck = 0, lastT = -1, started = false;
+video.addEventListener("playing", function () { started = true; });
+setInterval(function () {
+  if (mode !== "player" || !started || video.paused || !engine) { lastT = video.currentTime; return; }
+  if (video.currentTime === lastT) {
+    stuck++;
+    if (stuck === 3) {            // ~12s fermo: riavvia la diretta
+      var e = engine; stuck = 0; started = false; recover++;
+      showOsd("riconnessione…");
+      // dal secondo blocco in poi prova il lettore web invece di quello della TV
+      trySource(e.list, e.k, recover >= 2 && e.kind === "native");
+    }
+  } else stuck = 0;
+  lastT = video.currentTime;
+}, 4000);
+var recover = 0;
+
+// ---------- guida TV (epg.json aggiornato ogni 3 ore da GitHub) ----------
+var EPG = {};
+function loadEpg() {
+  var x = new XMLHttpRequest();
+  x.open("GET", "epg.json?t=" + Math.floor(Date.now() / 600000));
+  x.onload = function () { try { EPG = JSON.parse(x.responseText).ch || {}; if (mode === "grid") render(); } catch (e) {} };
+  x.send();
+}
+function hm(t) { var d = new Date(t * 1000), h = d.getHours(), m = d.getMinutes(); return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m; }
+function esc(t) { return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
+function nowNext(num) {
+  var l = EPG[num]; if (!l) return null;
+  var t = Date.now() / 1000;
+  for (var i = 0; i < l.length; i++) if (l[i][0] <= t && l[i][1] > t) return { now: l[i], next: l[i + 1] };
+  for (i = 0; i < l.length; i++) if (l[i][0] > t) return { now: null, next: l[i] };
+  return null;
+}
+function tileEpg(num) {
+  var n = nowNext(num); if (!n) return '<div class="now"></div>';
+  if (!n.now) return '<div class="now">' + hm(n.next[0]) + " " + esc(n.next[2]) + '</div>';
+  var pct = Math.max(0, Math.min(100, (Date.now() / 1000 - n.now[0]) / (n.now[1] - n.now[0]) * 100));
+  return '<div class="now">' + esc(n.now[2]) + '</div><div class="prog"><i style="width:' + pct.toFixed(0) + '%"></i></div>';
+}
+function osdEpg(num) {
+  var n = nowNext(num); if (!n) return "";
+  var h = "";
+  if (n.now) h += "<b>Ora</b> " + esc(n.now[2]) + " <b>fino alle " + hm(n.now[1]) + "</b>";
+  if (n.next) h += (h ? "<br>" : "") + "<b>Dopo</b> " + esc(n.next[2]) + " <b>alle " + hm(n.next[0]) + "</b>";
+  return h;
+}
+loadEpg(); setInterval(loadEpg, 30 * 60000);
+setInterval(function () { if (mode === "grid") render(); }, 60000);
 
 // ---------- pulsanti a schermo (puntatore della TV) ----------
 var gridScroll = 0, ctrlTimer = null;
@@ -390,7 +458,7 @@ function tick() {
   document.getElementById("clock").textContent = (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
 }
 tick(); setInterval(tick, 10000);
-document.getElementById("env").textContent = envText() + " · v5";
+document.getElementById("env").textContent = envText() + " · v6";
 if (location.search.indexOf("test") !== -1) runTest(); else render();
 
 // ---------- test di tutti i canali (apri la pagina con ?test) ----------
