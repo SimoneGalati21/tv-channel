@@ -55,7 +55,7 @@
       <h1>TV Libera</h1>
       <div class="hint">Frecce per scegliere · OK per guardare · tieni premuto OK o tasto giallo per i preferiti · numeri per andare al canale</div>
     </div>
-    <div id="clock"></div>
+    <div style="text-align:right"><div id="clock"></div><div id="env" class="hint" style="font-size:.85vw"></div></div>
   </header>
   <div id="scroller"><div id="grid"></div></div>
 </div>
@@ -79,6 +79,7 @@ function msf(code) { return MS + "ch-" + code + "/" + code + "-clr.isml/manifest
 function wbd(n, port, slug) { return AM + "amg16146c" + n + "-samsung-it-" + port + ".playouts.now.amagi.tv/playlist/amg16146-warnerbrosdiscoveryitalia-" + slug + "-samsungit/playlist.m3u8"; }
 
 var CHANNELS = [
+  [0, "Canale di prova", "altri", "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"],
   [1, "Rai 1", "rai", RAI + "2606803"],
   [2, "Rai 2", "rai", RAI + "308718"],
   [3, "Rai 3", "rai", RAI + "308709"],
@@ -194,24 +195,83 @@ function play(i) {
   hideMsg(); showOsd("Caricamento…");
   stopPlayback();
 
-  if (url.indexOf(".mpd") !== -1) {
-    if (window.dashjs) {
-      dash = dashjs.MediaPlayer().create();
-      dash.on("error", function () { fail(); });
-      dash.initialize(video, url, true);
-    } else fail();
-  } else if (window.Hls && Hls.isSupported()) {
-    hls = new Hls({ maxBufferLength: 20, liveSyncDurationCount: 3 });
-    hls.on(Hls.Events.ERROR, function (ev, d) { if (d.fatal) fail(); });
-    hls.loadSource(url); hls.attachMedia(video);
+  var isDash = url.indexOf(".mpd") !== -1;
+  tried = [];
+  if (isDash) {
+    if (ENV.nativeDash) playNative(url, function () { playDashJs(url); });
+    else playDashJs(url);
   } else {
-    video.src = url; // la TV prova da sola a riprodurre HLS
+    // Prima il lettore della TV (non soggetto ai blocchi CORS), poi hls.js
+    if (ENV.nativeHls) playNative(url, function () { playHlsJs(url, null); });
+    else playHlsJs(url, function () { playNative(url, null); });
   }
-  var p = video.play(); if (p && p.catch) p.catch(function () {});
 }
-video.addEventListener("playing", function () { showOsd(""); hideMsg(); });
-video.addEventListener("error", function () { if (!hls && !dash) fail(); });
-function fail() { showMsg("Questo canale non parte ora.<br>Su/Giù per cambiare canale, Indietro per la lista."); showOsd("non disponibile"); }
+
+// ---------- motori di riproduzione ----------
+var tried = [], playId = 0, nativeNext = null, startTimer = null;
+var ENV = {
+  nativeHls: !!video.canPlayType && video.canPlayType("application/vnd.apple.mpegurl") !== "",
+  nativeDash: !!video.canPlayType && video.canPlayType("application/dash+xml") !== "",
+  mse: !!(window.MediaSource || window.WebKitMediaSource),
+  hlsjs: !!(window.Hls && Hls.isSupported()),
+  dashjs: !!window.dashjs
+};
+function envText() {
+  return "HLS TV " + (ENV.nativeHls ? "sì" : "no") + " · DASH TV " + (ENV.nativeDash ? "sì" : "no") +
+    " · MSE " + (ENV.mse ? "sì" : "no") + " · hls.js " + (ENV.hlsjs ? "sì" : "no") + " · dash.js " + (ENV.dashjs ? "sì" : "no");
+}
+function startPlay() { var p = video.play(); if (p && p.catch) p.catch(function () {}); }
+function armTimeout(id, label, next) {
+  clearTimeout(startTimer);
+  startTimer = setTimeout(function () {
+    if (id !== playId) return;
+    tried.push(label + ": nessun segnale dopo 15s");
+    if (next) next(); else fail();
+  }, 15000);
+}
+function playNative(url, next) {
+  stopPlayback(); var id = ++playId; nativeNext = { id: id, next: next };
+  video.src = url; startPlay(); armTimeout(id, "lettore TV", next);
+}
+function playHlsJs(url, next) {
+  stopPlayback(); var id = ++playId; nativeNext = null;
+  if (!ENV.hlsjs) { tried.push("hls.js: non supportato"); return next ? next() : fail(); }
+  hls = new Hls({ maxBufferLength: 20, liveSyncDurationCount: 3 });
+  hls.on(Hls.Events.ERROR, function (ev, d) {
+    if (!d.fatal || id !== playId) return;
+    var code = d.response && d.response.code !== undefined ? " HTTP " + d.response.code : "";
+    tried.push("hls.js: " + d.details + code);
+    stopPlayback(); if (next) next(); else fail();
+  });
+  hls.loadSource(url); hls.attachMedia(video); startPlay(); armTimeout(id, "hls.js", next);
+}
+function playDashJs(url) {
+  stopPlayback(); var id = ++playId; nativeNext = null;
+  if (!ENV.dashjs || !ENV.mse) { tried.push("dash.js: non supportato"); return fail(); }
+  dash = dashjs.MediaPlayer().create();
+  dash.on("error", function (e) {
+    if (id !== playId) return;
+    var er = e && e.error ? (e.error.message || e.error.code || "") : "";
+    tried.push("dash.js: " + er); fail();
+  });
+  dash.initialize(video, url, true); armTimeout(id, "dash.js", null);
+}
+video.addEventListener("playing", function () { clearTimeout(startTimer); showOsd(""); hideMsg(); });
+video.addEventListener("error", function () {
+  if (!nativeNext || nativeNext.id !== playId) return;
+  var codes = { 1: "interrotto", 2: "errore di rete", 3: "errore di decodifica", 4: "formato non supportato" };
+  var c = video.error ? video.error.code : 0;
+  tried.push("lettore TV: " + (codes[c] || "errore " + c));
+  var next = nativeNext.next; nativeNext = null; clearTimeout(startTimer);
+  if (next) next(); else fail();
+});
+function fail() {
+  clearTimeout(startTimer); playId++;
+  showMsg("Questo canale non parte ora.<br>Su/Giù per cambiare canale, Indietro per la lista." +
+    '<div style="margin-top:1vw;font-size:1.05vw;color:#8a93a8;text-align:left">' +
+    tried.join("<br>") + "<br>" + envText() + "</div>");
+  showOsd("non disponibile");
+}
 function showOsd(state) {
   var c = LIST[current], o = document.getElementById("osd");
   o.children[0].textContent = c[0]; o.children[1].textContent = c[1]; o.children[2].textContent = state || "";
@@ -288,6 +348,7 @@ function tick() {
   document.getElementById("clock").textContent = (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
 }
 tick(); setInterval(tick, 10000);
+document.getElementById("env").textContent = envText() + " · v2";
 render();
 </script>
 </body>
