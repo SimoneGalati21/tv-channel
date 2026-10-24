@@ -15,7 +15,6 @@ const S = {
   31: [["sgt", "real-time/255"]],
   33: [["sgt", "foodnetwork/431"]],
   34: [["ms", "B6"], ["sky", 10893]], 35: [["ms", "FU"], ["sky", 10470]], 36: [["sky", 6885]],
-  37: [["sgt", "warner-tv/1344181813"]],
   38: [["sgt", "giallo/244"]],
   39: [["ms", "LT"], ["sky", 10468]], 40: [["ms", "KB"], ["sky", 6628]],
   42: [["rai", "rai-gulp"], ["sky", 6629]], 43: [["rai", "rai-yoyo"], ["sky", 6609]],
@@ -24,7 +23,7 @@ const S = {
   52: [["sgt", "dmax/256"]],
   54: [["rai", "rai-storia"], ["sky", 6630]], 55: [["ms", "KQ"], ["sky", 10465]],
   56: [["sgt", "hgtv-homegarden/575"]],
-  57: [["sgt", "rai-scuola/230"]], 58: [["rai", "rai-sport"], ["sky", 807]],
+58: [["rai", "rai-sport"], ["sky", 807]],
   60: [["sgt", "sportitalia/54"]],
   64: [["sky", 6000]], 69: [["sky", 462]], 70: [["sky", 9833]]
 };
@@ -87,6 +86,16 @@ export function parseGtv(html, ymd) {
 }
 export function parseSgt(html, ymd) {
   const $ = load(html);
+  // impaginazione attuale (2026): orario, titolo, "Genere (durata')"
+  const items = $(".sgtv-epg-channel-paragraph-hover").toArray();
+  if (items.length) {
+    const rows = items.map(el => { const p = $(el).find("p"); return [p.eq(0).text().trim(), p.eq(1).text().trim().replace(/\s*\((St\.|Ep\.)[^)]*\)\s*$/, ""), p.eq(2).text()]; });
+    const out = chain(rows.map(r => [r[0], r[1]]), ymd);
+    const last = rows[rows.length - 1], dur = (last && last[2].match(/\((\d+)'\)/)) || null;
+    if (out.length && dur) out[out.length - 1][1] = out[out.length - 1][0] + dur[1] * 60;
+    return out;
+  }
+  // impaginazione precedente
   return chain($(".sgtvchannelplan_divContainer > .sgtvchannelplan_divTableRow").has("#containerInfoEvent").toArray().map(el => {
     const $el = $(el);
     return [$el.find(".sgtvchannelplan_hoursCell").clone().children(".sgtvOnairSpan").remove().end().text().trim(),
@@ -129,7 +138,6 @@ async function fromSource([kind, id], today, tomorrow) {
   if (kind === "sgt") {
     const html = await get(`https://www.superguidatv.it/programmazione-canale/oggi/guida-programmi-tv-${id}/`);
     const a = parseSgt(html, today);
-    if (!a.length && id === "nove/238") writeFileSync("epg/debug-sgt.html", html); // campione per adattare il parser
     let b = []; try { b = parseSgt(await get(`https://www.superguidatv.it/programmazione-canale/domani/guida-programmi-tv-${id}/`), tomorrow); } catch (e) {}
     return join2(a, b);
   }
