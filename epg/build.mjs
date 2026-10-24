@@ -8,24 +8,24 @@ const S = {
   1: [["rai", "rai-1"], ["sky", 899]], 2: [["rai", "rai-2"], ["sky", 898]], 3: [["rai", "rai-3"], ["sky", 897]],
   4: [["ms", "R4"], ["sky", 10464]], 5: [["ms", "C5"], ["sky", 10354]], 6: [["ms", "I1"], ["sky", 10454]],
   7: [["sky", 319]], 8: [["sky", 8195]],
-  9: [["gtv", "68748486/nove"], ["sgt", "nove/238"]],
+  9: [["sgt", "nove/238"]],
   20: [["ms", "LB"], ["sky", 10458]], 21: [["rai", "rai-4"], ["sky", 6622]], 22: [["ms", "KI"], ["sky", 10467]],
   23: [["rai", "rai-5"], ["sky", 6607]], 24: [["rai", "rai-movie"], ["sky", 6608]], 25: [["rai", "rai-premium"], ["sky", 6623]],
   27: [["ms", "TS"], ["sky", 11342]], 28: [["sky", 7588]], 29: [["sky", 6624]], 30: [["ms", "KA"], ["sky", 10466]],
-  31: [["gtv", "82847384/real-time"], ["sgt", "real-time/255"]],
-  33: [["gtv", "70787384/food-network"], ["sgt", "foodnetwork/431"]],
+  31: [["sgt", "real-time/255"]],
+  33: [["sgt", "foodnetwork/431"]],
   34: [["ms", "B6"], ["sky", 10893]], 35: [["ms", "FU"], ["sky", 10470]], 36: [["sky", 6885]],
   37: [["sgt", "warner-tv/1344181813"]],
-  38: [["gtv", "71737979/giallo"], ["sgt", "giallo/244"]],
+  38: [["sgt", "giallo/244"]],
   39: [["ms", "LT"], ["sky", 10468]], 40: [["ms", "KB"], ["sky", 6628]],
   42: [["rai", "rai-gulp"], ["sky", 6629]], 43: [["rai", "rai-yoyo"], ["sky", 6609]],
   46: [["ms", "LA"], ["sky", 8132]], 47: [["sky", 6460]], 48: [["rai", "rai-news-24"], ["sky", 895]],
   49: [["ms", "I2"], ["sgt", "italia-2/191"]], 51: [["ms", "KF"], ["sky", 10473]],
-  52: [["gtv", "68776588/dmax-italia"], ["sgt", "dmax/256"]],
+  52: [["sgt", "dmax/256"]],
   54: [["rai", "rai-storia"], ["sky", 6630]], 55: [["ms", "KQ"], ["sky", 10465]],
-  56: [["gtv", "72717384/hgtv-it"], ["sgt", "hgtv-homegarden/575"]],
-  57: [["rai", "rai-scuola"], ["sgt", "rai-scuola/230"]], 58: [["rai", "rai-sport"], ["sky", 807]],
-  60: [["gtv", "83807384/sport-italia"], ["sgt", "sportitalia/54"]],
+  56: [["sgt", "hgtv-homegarden/575"]],
+  57: [["sgt", "rai-scuola/230"]], 58: [["rai", "rai-sport"], ["sky", 807]],
+  60: [["sgt", "sportitalia/54"]],
   64: [["sky", 6000]], 69: [["sky", 462]], 70: [["sky", 9833]]
 };
 
@@ -110,9 +110,11 @@ async function fromSource([kind, id], today, tomorrow) {
   if (kind === "sky") {
     return parseSky(await get(`https://apid.sky.it/gtv/v1/events?from=${today}T00:00:00Z&to=${nextDay(tomorrow)}T00:00:00Z&pageSize=999&pageNum=0&env=DTH&channels=${id}`));
   }
-  if (kind === "ms") {
-    const a = romeToEpoch(today, "00:00") * 1000, b = romeToEpoch(nextDay(tomorrow), "00:00") * 1000;
-    return parseMs(await get(`https://api-ott-prod-fe.mediaset.net/PROD/play/feed/allListingFeedEpg/v2.0?byListingTime=${a}~${b}&byCallSign=${id}`));
+  if (kind === "ms") { // massimo 24 ore per richiesta
+    const day = async ymd => parseMs(await get(`https://api-ott-prod-fe.mediaset.net/PROD/play/feed/allListingFeedEpg/v2.0?byListingTime=${romeToEpoch(ymd, "00:00") * 1000}~${romeToEpoch(nextDay(ymd), "00:00") * 1000 - 1}&byCallSign=${id}`));
+    const a = await day(today);
+    let b = []; try { b = await day(tomorrow); } catch (e) {}
+    return join2(a, b);
   }
   if (kind === "rai") {
     const a = parseRai(await get(`https://www.raiplay.it/palinsesto/app/${id}/${dmy(today)}.json`), today);
@@ -125,7 +127,9 @@ async function fromSource([kind, id], today, tomorrow) {
     return join2(a, b);
   }
   if (kind === "sgt") {
-    const a = parseSgt(await get(`https://www.superguidatv.it/programmazione-canale/oggi/guida-programmi-tv-${id}/`), today);
+    const html = await get(`https://www.superguidatv.it/programmazione-canale/oggi/guida-programmi-tv-${id}/`);
+    const a = parseSgt(html, today);
+    if (!a.length && id === "nove/238") writeFileSync("epg/debug-sgt.html", html); // campione per adattare il parser
     let b = []; try { b = parseSgt(await get(`https://www.superguidatv.it/programmazione-canale/domani/guida-programmi-tv-${id}/`), tomorrow); } catch (e) {}
     return join2(a, b);
   }
