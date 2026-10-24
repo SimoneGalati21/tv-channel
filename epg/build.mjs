@@ -136,7 +136,7 @@ async function main() {
   const today = romeYmd(0), tomorrow = romeYmd(1), guide = {}, log = [];
   const now = Math.round(Date.now() / 1000), cut = now - 3 * 3600;
 
-  await Promise.all(Object.entries(S).map(async ([num, sources]) => {
+  for (const [num, sources] of Object.entries(S)) await (async () => {
     for (const src of sources) {
       try {
         const progs = (await fromSource(src, today, tomorrow)).filter(p => p[1] > cut && p[2]).sort((x, y) => x[0] - y[0]);
@@ -144,7 +144,7 @@ async function main() {
         log.push(num + " " + src[0] + ": vuoto [" + peek.last + "]");
       } catch (e) { log.push(num + " " + src[0] + ": " + e.message); }
     }
-  }));
+  })();
 
   // se tutte le fonti di un canale falliscono, conserva i dati precedenti ancora validi
   try {
