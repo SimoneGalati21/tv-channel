@@ -94,10 +94,14 @@ export function parseSgt(html, ymd) {
   }), ymd);
 }
 
+const peek = {};
 async function get(url) {
   const r = await fetch(url, { headers: UA });
   if (!r.ok) throw new Error("HTTP " + r.status);
-  return r.text();
+  const t = await r.text();
+  const title = (t.match(/<title[^>]*>([^<]*)/i) || [])[1];
+  peek.last = r.status + " " + t.length + "B " + (title ? "title=" + title.trim().slice(0, 60) : t.slice(0, 120).replace(/\s+/g, " "));
+  return t;
 }
 const join2 = (a, b) => { if (a.length && b.length && a[a.length - 1][1] > b[0][0]) a[a.length - 1][1] = b[0][0]; return a.concat(b); };
 
@@ -137,7 +141,7 @@ async function main() {
       try {
         const progs = (await fromSource(src, today, tomorrow)).filter(p => p[1] > cut && p[2]).sort((x, y) => x[0] - y[0]);
         if (progs.length) { guide[num] = progs; log.push(num + " ok " + src[0]); return; }
-        log.push(num + " " + src[0] + ": vuoto");
+        log.push(num + " " + src[0] + ": vuoto [" + peek.last + "]");
       } catch (e) { log.push(num + " " + src[0] + ": " + e.message); }
     }
   }));
