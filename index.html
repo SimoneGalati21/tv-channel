@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TV Libera</title>
+<style>
+  :root {
+    --bg: #0b0d12; --panel: #151922; --tile: #1b2030; --text: #eef1f7;
+    --muted: #8a93a8; --accent: #4f8cff; --focus: #ffffff;
+    --rai: #2f6fde; --mediaset: #e0453a; --wbd: #2bb5a0; --altri: #8b6ad8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); color: var(--text); height: 100%; overflow: hidden;
+    font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+
+  #grid-view { height: 100%; display: flex; flex-direction: column; padding: 2.2vw 3vw 0; }
+  header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 1.6vw; }
+  header h1 { font-size: 2.4vw; font-weight: 600; letter-spacing: .02em; }
+  header .hint { color: var(--muted); font-size: 1.05vw; }
+  #clock { font-size: 2vw; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  #scroller { flex: 1; overflow: hidden; position: relative; }
+  #grid { display: flex; flex-wrap: wrap; gap: 1.1vw; padding: .6vw .6vw 4vw; transition: transform .18s ease-out; }
+  .tile { width: calc((100% - 5 * 1.1vw) / 6); height: 8.4vw; background: var(--tile);
+    border-radius: .8vw; position: relative; padding: 1vw 1.1vw; display: flex; flex-direction: column;
+    justify-content: flex-end; border: .22vw solid transparent; transition: transform .12s, border-color .12s, background .12s; }
+  .tile .num { position: absolute; top: .8vw; left: 1.1vw; font-size: 1.2vw; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .tile .bar { position: absolute; top: 0; left: 0; right: 0; height: .35vw; border-radius: .8vw .8vw 0 0; }
+  .tile .name { font-size: 1.45vw; font-weight: 600; line-height: 1.15; }
+  .tile .fav { position: absolute; top: .7vw; right: 1vw; font-size: 1.2vw; color: #ffcc4d; }
+  .tile.focus { border-color: var(--focus); background: #252c40; transform: scale(1.06); z-index: 2; }
+  .g-rai .bar { background: var(--rai); } .g-mediaset .bar { background: var(--mediaset); }
+  .g-wbd .bar { background: var(--wbd); } .g-altri .bar { background: var(--altri); }
+
+  #player-view { position: fixed; inset: 0; background: #000; display: none; }
+  #video { width: 100%; height: 100%; background: #000; }
+  #osd { position: absolute; left: 3vw; bottom: 3vw; background: rgba(10,12,18,.82); padding: 1.2vw 1.8vw;
+    border-radius: .8vw; display: flex; align-items: baseline; gap: 1.2vw; transition: opacity .4s; }
+  #osd .num { font-size: 2.4vw; color: var(--muted); font-variant-numeric: tabular-nums; }
+  #osd .name { font-size: 2.4vw; font-weight: 600; }
+  #osd .state { font-size: 1.2vw; color: var(--muted); }
+  #msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;
+    font-size: 1.6vw; color: var(--text); background: rgba(10,12,18,.85); padding: 1.6vw 2.4vw; border-radius: .8vw; display: none; max-width: 60vw; }
+  #numbuf { position: absolute; top: 3vw; right: 3vw; font-size: 4vw; font-weight: 700;
+    background: rgba(10,12,18,.82); padding: .6vw 1.4vw; border-radius: .8vw; display: none; font-variant-numeric: tabular-nums; }
+  .hidden { opacity: 0; }
+</style>
+</head>
+<body>
+
+<div id="grid-view">
+  <header>
+    <div>
+      <h1>TV Libera</h1>
+      <div class="hint">Frecce per scegliere · OK per guardare · tieni premuto OK o tasto giallo per i preferiti · numeri per andare al canale</div>
+    </div>
+    <div id="clock"></div>
+  </header>
+  <div id="scroller"><div id="grid"></div></div>
+</div>
+
+<div id="player-view">
+  <video id="video" autoplay playsinline></video>
+  <div id="osd"><span class="num"></span><span class="name"></span><span class="state"></span></div>
+  <div id="msg"></div>
+  <div id="numbuf"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dashjs@4.7.4/dist/dash.all.min.js"></script>
+<script>
+// Canali in chiaro italiani: flussi pubblici gratuiti delle emittenti.
+// Alcuni funzionano solo da connessioni italiane.
+var RAI = "https://mediapolis.rai.it/relinker/relinkerServlet.htm?output=7&forceUserAgent=raiplayappletv&cont=";
+var MS = "https://live03-col.msf.cdn.mediaset.net/live/";
+var AM = "https://amg16146-wbdi-";
+function msf(code) { return MS + "ch-" + code + "/" + code + "-clr.isml/manifest.mpd"; }
+function wbd(n, port, slug) { return AM + "amg16146c" + n + "-samsung-it-" + port + ".playouts.now.amagi.tv/playlist/amg16146-warnerbrosdiscoveryitalia-" + slug + "-samsungit/playlist.m3u8"; }
+
+var CHANNELS = [
+  [1, "Rai 1", "rai", RAI + "2606803"],
+  [2, "Rai 2", "rai", RAI + "308718"],
+  [3, "Rai 3", "rai", RAI + "308709"],
+  [4, "Rete 4", "mediaset", msf("r4")],
+  [5, "Canale 5", "mediaset", msf("c5")],
+  [6, "Italia 1", "mediaset", msf("i1")],
+  [7, "La7", "altri", "https://d3749synfikwkv.cloudfront.net/v1/master/3722c60a815c199d9c0ef36c5b73da68a62b09d1/cc-74ylxpgd78bpb/Live.m3u8"],
+  [9, "Nove", "wbd", wbd(1, 1831, "nove")],
+  [20, "20 Mediaset", "mediaset", msf("lb")],
+  [21, "Rai 4", "rai", RAI + "746966"],
+  [22, "Iris", "mediaset", msf("ki")],
+  [23, "Rai 5", "rai", RAI + "395276"],
+  [24, "Rai Movie", "rai", RAI + "747002"],
+  [25, "Rai Premium", "rai", RAI + "746992"],
+  [27, "Twentyseven", "mediaset", msf("ts")],
+  [28, "TV2000", "altri", "https://hls-live-tv2000.akamaized.net/hls/live/2028510/tv2000/master.m3u8"],
+  [29, "La7 Cinema", "altri", "https://d15umi5iaezxgx.cloudfront.net/LA7D/CLN/HLS/Live.m3u8"],
+  [30, "La5", "mediaset", msf("ka")],
+  [31, "Real Time", "wbd", wbd(2, 1835, "realtime")],
+  [33, "Food Network", "wbd", wbd(3, 1836, "foodnetwork")],
+  [34, "Cine34", "mediaset", msf("b6")],
+  [35, "Focus", "mediaset", msf("fu")],
+  [37, "Warner TV", "wbd", wbd(4, 1837, "warnertv")],
+  [38, "Giallo", "wbd", wbd(5, 1838, "giallo")],
+  [39, "Top Crime", "mediaset", msf("lt")],
+  [40, "Boing", "mediaset", msf("kb")],
+  [41, "K2", "wbd", wbd(6, 1839, "k2")],
+  [42, "Rai Gulp", "rai", RAI + "746953"],
+  [43, "Rai Yoyo", "rai", RAI + "746899"],
+  [44, "Frisbee", "wbd", wbd(7, 1840, "frisbee")],
+  [46, "Cartoonito", "mediaset", msf("la")],
+  [47, "Super!", "altri", "https://vimnitaly.akamaized.net/hls/live/2094034/super/master.m3u8"],
+  [48, "Rai News 24", "rai", RAI + "1"],
+  [49, "Italia 2", "mediaset", msf("i2")],
+  [51, "TGCom 24", "mediaset", msf("kf")],
+  [52, "DMAX", "wbd", wbd(8, 1841, "dmax")],
+  [54, "Rai Storia", "rai", RAI + "746990"],
+  [55, "Mediaset Extra", "mediaset", msf("kq")],
+  [56, "HGTV", "wbd", wbd(9, 1842, "hgtv")],
+  [57, "Rai Scuola", "rai", RAI + "747011"],
+  [58, "Rai Sport", "rai", RAI + "358025"],
+  [59, "Motor Trend", "wbd", wbd(10, 1843, "motortrend")],
+  [60, "Sportitalia", "altri", "https://sportitaliaamd.akamaized.net/live/Sportitalia/hls/F59D8EB0332E783633CDDE8E265844975635D24F/index.m3u8"],
+  [64, "SuperTennis", "altri", "https://live-embed.supertennix.hiway.media/restreamer/supertennix_client/gpu-a-c0-16/restreamer/rtmp/hls/h24_supertennix/manifest.m3u8"],
+  [36, "RTL 102.5", "altri", "https://dd782ed59e2a4e86aabf6fc508674b59.msvdn.net/live/S97044836/tbbP8T1ZRPBL/playlist_video.m3u8"],
+  [69, "Deejay TV", "altri", "https://4c4b867c89244861ac216426883d1ad0.msvdn.net/live/S85984808/sMO0tz9Sr2Rk/playlist.m3u8"],
+  [70, "Radio Italia TV", "altri", "https://radioitaliatv.akamaized.net/hls/live/2093117/RadioitaliaTV/master.m3u8"],
+  [831, "San Marino RTV", "altri", "https://d2hrvno5bw6tg2.cloudfront.net/smrtv-ch01/_definst_/smil:ch-01.smil/chunklist_b2192000_slita.m3u8"]
+];
+CHANNELS.sort(function (a, b) { return a[0] - b[0]; });
+
+// ---------- stato ----------
+var COLS = 6, focusIdx = 0, current = -1, mode = "grid";
+var favs = loadFavs();
+var hls = null, dash = null, osdTimer = null, numBuf = "", numTimer = null, okHold = null;
+var gridEl = document.getElementById("grid"), video = document.getElementById("video");
+
+function loadFavs() { try { return JSON.parse(localStorage.getItem("tvlibera-favs") || "[]"); } catch (e) { return []; } }
+function saveFavs() { try { localStorage.setItem("tvlibera-favs", JSON.stringify(favs)); } catch (e) {} }
+function isFav(n) { return favs.indexOf(n) !== -1; }
+function order() {
+  // preferiti in testa, poi gli altri per numero
+  var f = [], o = [];
+  for (var i = 0; i < CHANNELS.length; i++) (isFav(CHANNELS[i][0]) ? f : o).push(CHANNELS[i]);
+  return f.concat(o);
+}
+var LIST = order();
+
+// ---------- griglia ----------
+function render() {
+  var html = "";
+  for (var i = 0; i < LIST.length; i++) {
+    var c = LIST[i];
+    html += '<div class="tile g-' + c[2] + (i === focusIdx ? " focus" : "") + '" data-i="' + i + '">' +
+      '<div class="bar"></div><div class="num">' + c[0] + '</div>' +
+      (isFav(c[0]) ? '<div class="fav">★</div>' : "") +
+      '<div class="name">' + c[1] + '</div></div>';
+  }
+  gridEl.innerHTML = html;
+  scrollToFocus();
+}
+function setFocus(i) {
+  if (i < 0 || i >= LIST.length) return;
+  var old = gridEl.children[focusIdx]; if (old) old.className = old.className.replace(" focus", "");
+  focusIdx = i;
+  var el = gridEl.children[focusIdx]; if (el) el.className += " focus";
+  scrollToFocus();
+}
+function scrollToFocus() {
+  var el = gridEl.children[focusIdx]; if (!el) return;
+  var row = Math.floor(focusIdx / COLS), rowH = el.offsetHeight + el.offsetTop - (gridEl.children[0].offsetTop);
+  var h = el.offsetHeight * 1.13, view = document.getElementById("scroller").offsetHeight;
+  var offset = Math.max(0, row * h - view / 2 + h);
+  gridEl.style.transform = "translateY(" + (-offset) + "px)";
+}
+gridEl.addEventListener("click", function (e) {
+  var t = e.target; while (t && t !== gridEl && !t.getAttribute("data-i")) t = t.parentNode;
+  if (t && t.getAttribute) { setFocus(+t.getAttribute("data-i")); play(focusIdx); }
+});
+
+// ---------- player ----------
+function stopPlayback() {
+  if (hls) { try { hls.destroy(); } catch (e) {} hls = null; }
+  if (dash) { try { dash.reset(); } catch (e) {} dash = null; }
+  try { video.pause(); video.removeAttribute("src"); video.load(); } catch (e) {}
+}
+function play(i) {
+  if (i < 0) i = LIST.length - 1; if (i >= LIST.length) i = 0;
+  current = i; var c = LIST[i], url = c[3];
+  mode = "player";
+  document.getElementById("grid-view").style.display = "none";
+  document.getElementById("player-view").style.display = "block";
+  hideMsg(); showOsd("Caricamento…");
+  stopPlayback();
+
+  if (url.indexOf(".mpd") !== -1) {
+    if (window.dashjs) {
+      dash = dashjs.MediaPlayer().create();
+      dash.on("error", function () { fail(); });
+      dash.initialize(video, url, true);
+    } else fail();
+  } else if (window.Hls && Hls.isSupported()) {
+    hls = new Hls({ maxBufferLength: 20, liveSyncDurationCount: 3 });
+    hls.on(Hls.Events.ERROR, function (ev, d) { if (d.fatal) fail(); });
+    hls.loadSource(url); hls.attachMedia(video);
+  } else {
+    video.src = url; // la TV prova da sola a riprodurre HLS
+  }
+  var p = video.play(); if (p && p.catch) p.catch(function () {});
+}
+video.addEventListener("playing", function () { showOsd(""); hideMsg(); });
+video.addEventListener("error", function () { if (!hls && !dash) fail(); });
+function fail() { showMsg("Questo canale non parte ora.<br>Su/Giù per cambiare canale, Indietro per la lista."); showOsd("non disponibile"); }
+function showOsd(state) {
+  var c = LIST[current], o = document.getElementById("osd");
+  o.children[0].textContent = c[0]; o.children[1].textContent = c[1]; o.children[2].textContent = state || "";
+  o.className = ""; clearTimeout(osdTimer);
+  osdTimer = setTimeout(function () { if (!state) o.className = "hidden"; }, 3500);
+}
+function showMsg(t) { var m = document.getElementById("msg"); m.innerHTML = t; m.style.display = "block"; }
+function hideMsg() { document.getElementById("msg").style.display = "none"; }
+function backToGrid() {
+  stopPlayback(); mode = "grid";
+  document.getElementById("player-view").style.display = "none";
+  document.getElementById("grid-view").style.display = "flex";
+  setFocus(current < 0 ? 0 : current);
+}
+
+// ---------- numeri ----------
+function typeNum(d) {
+  numBuf = (numBuf + d).slice(-3);
+  var b = document.getElementById("numbuf");
+  if (mode === "player") { b.textContent = numBuf; b.style.display = "block"; }
+  clearTimeout(numTimer);
+  numTimer = setTimeout(function () {
+    var n = +numBuf; numBuf = ""; b.style.display = "none";
+    for (var i = 0; i < LIST.length; i++) if (LIST[i][0] === n) { setFocus(i); if (mode === "player") play(i); return; }
+  }, 1400);
+}
+
+// ---------- preferiti ----------
+function toggleFav() {
+  var c = LIST[focusIdx], n = c[0], k = favs.indexOf(n);
+  if (k === -1) favs.push(n); else favs.splice(k, 1);
+  saveFavs(); LIST = order();
+  for (var i = 0; i < LIST.length; i++) if (LIST[i][0] === n) focusIdx = i;
+  render();
+}
+
+// ---------- telecomando ----------
+var BACK = [8, 27, 461, 10009, 166];
+document.addEventListener("keydown", function (e) {
+  var k = e.keyCode;
+  if (k >= 48 && k <= 57) { typeNum(String(k - 48)); e.preventDefault(); return; }
+  if (k >= 96 && k <= 105) { typeNum(String(k - 96)); e.preventDefault(); return; }
+
+  if (mode === "grid") {
+    if (k === 37) setFocus(focusIdx - 1);
+    else if (k === 39) setFocus(focusIdx + 1);
+    else if (k === 38) setFocus(focusIdx - COLS);
+    else if (k === 40) setFocus(Math.min(focusIdx + COLS, LIST.length - 1));
+    else if (k === 405 || k === 70) toggleFav(); // tasto giallo o F
+    else if (k === 13) {
+      if (e.repeat) return;
+      okHold = setTimeout(function () { okHold = "done"; toggleFav(); }, 800);
+    } else return;
+    e.preventDefault();
+  } else {
+    if (k === 38 || k === 33 || k === 427) play(current - 1);
+    else if (k === 40 || k === 34 || k === 428) play(current + 1);
+    else if (k === 13 || k === 37 || k === 39) showOsd("");
+    else if (BACK.indexOf(k) !== -1) backToGrid();
+    else return;
+    e.preventDefault();
+  }
+});
+document.addEventListener("keyup", function (e) {
+  if (mode === "grid" && e.keyCode === 13) {
+    if (okHold === "done") { okHold = null; return; }
+    clearTimeout(okHold); okHold = null; play(focusIdx);
+  }
+});
+
+// ---------- orologio ----------
+function tick() {
+  var d = new Date(), h = d.getHours(), m = d.getMinutes();
+  document.getElementById("clock").textContent = (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
+}
+tick(); setInterval(tick, 10000);
+render();
+</script>
+</body>
+</html>
