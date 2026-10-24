@@ -90,56 +90,60 @@ var AM = "https://amg16146-wbdi-";
 function msf(code) { return MS + "ch-" + code + "/" + code + "-clr.isml/manifest.mpd"; }
 function wbd(n, port, slug) { return AM + "amg16146c" + n + "-samsung-it-" + port + ".playouts.now.amagi.tv/playlist/amg16146-warnerbrosdiscoveryitalia-" + slug + "-samsungit/playlist.m3u8"; }
 
+// [numero, nome, gruppo, fonti (provate in ordine), pagina ufficiale di riserva]
+var WBD = "https://streaming.aurora.enhanced.live/live/mpc/enl0eG1mLmVncmVzcy5mZDJ2eHI=/out/v1/IT_SIMULCAST/";
+function wb(code) { return WBD + code + "/CMAF/index.m3u8"; }
+function rp(slug) { return "https://www.raiplay.it/dirette/" + slug; }
 var CHANNELS = [
-  [0, "Canale di prova", "altri", "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"],
-  [1, "Rai 1", "rai", RAI + "2606803"],
-  [2, "Rai 2", "rai", RAI + "308718"],
-  [3, "Rai 3", "rai", RAI + "308709"],
-  [4, "Rete 4", "mediaset", msf("r4")],
-  [5, "Canale 5", "mediaset", msf("c5")],
-  [6, "Italia 1", "mediaset", msf("i1")],
-  [7, "La7", "altri", "https://d3749synfikwkv.cloudfront.net/v1/master/3722c60a815c199d9c0ef36c5b73da68a62b09d1/cc-74ylxpgd78bpb/Live.m3u8"],
-  [9, "Nove", "wbd", wbd(1, 1831, "nove")],
-  [20, "20 Mediaset", "mediaset", msf("lb")],
-  [21, "Rai 4", "rai", RAI + "746966"],
-  [22, "Iris", "mediaset", msf("ki")],
-  [23, "Rai 5", "rai", RAI + "395276"],
-  [24, "Rai Movie", "rai", RAI + "747002"],
-  [25, "Rai Premium", "rai", RAI + "746992"],
-  [27, "Twentyseven", "mediaset", msf("ts")],
-  [28, "TV2000", "altri", "https://hls-live-tv2000.akamaized.net/hls/live/2028510/tv2000/master.m3u8"],
-  [29, "La7 Cinema", "altri", "https://d15umi5iaezxgx.cloudfront.net/LA7D/CLN/HLS/Live.m3u8"],
-  [30, "La5", "mediaset", msf("ka")],
-  [31, "Real Time", "wbd", wbd(2, 1835, "realtime")],
-  [33, "Food Network", "wbd", wbd(3, 1836, "foodnetwork")],
-  [34, "Cine34", "mediaset", msf("b6")],
-  [35, "Focus", "mediaset", msf("fu")],
-  [37, "Warner TV", "wbd", wbd(4, 1837, "warnertv")],
-  [38, "Giallo", "wbd", wbd(5, 1838, "giallo")],
-  [39, "Top Crime", "mediaset", msf("lt")],
-  [40, "Boing", "mediaset", msf("kb")],
-  [41, "K2", "wbd", wbd(6, 1839, "k2")],
-  [42, "Rai Gulp", "rai", RAI + "746953"],
-  [43, "Rai Yoyo", "rai", RAI + "746899"],
-  [44, "Frisbee", "wbd", wbd(7, 1840, "frisbee")],
-  [46, "Cartoonito", "mediaset", msf("la")],
-  [47, "Super!", "altri", "https://vimnitaly.akamaized.net/hls/live/2094034/super/master.m3u8"],
-  [48, "Rai News 24", "rai", RAI + "1"],
-  [49, "Italia 2", "mediaset", msf("i2")],
-  [51, "TGCom 24", "mediaset", msf("kf")],
-  [52, "DMAX", "wbd", wbd(8, 1841, "dmax")],
-  [54, "Rai Storia", "rai", RAI + "746990"],
-  [55, "Mediaset Extra", "mediaset", msf("kq")],
-  [56, "HGTV", "wbd", wbd(9, 1842, "hgtv")],
-  [57, "Rai Scuola", "rai", RAI + "747011"],
-  [58, "Rai Sport", "rai", RAI + "358025"],
-  [59, "Motor Trend", "wbd", wbd(10, 1843, "motortrend")],
-  [60, "Sportitalia", "altri", "https://sportitaliaamd.akamaized.net/live/Sportitalia/hls/F59D8EB0332E783633CDDE8E265844975635D24F/index.m3u8"],
-  [64, "SuperTennis", "altri", "https://live-embed.supertennix.hiway.media/restreamer/supertennix_client/gpu-a-c0-16/restreamer/rtmp/hls/h24_supertennix/manifest.m3u8"],
-  [36, "RTL 102.5", "altri", "https://dd782ed59e2a4e86aabf6fc508674b59.msvdn.net/live/S97044836/tbbP8T1ZRPBL/playlist_video.m3u8"],
-  [69, "Deejay TV", "altri", "https://4c4b867c89244861ac216426883d1ad0.msvdn.net/live/S85984808/sMO0tz9Sr2Rk/playlist.m3u8"],
-  [70, "Radio Italia TV", "altri", "https://radioitaliatv.akamaized.net/hls/live/2093117/RadioitaliaTV/master.m3u8"],
-  [831, "San Marino RTV", "altri", "https://d2hrvno5bw6tg2.cloudfront.net/smrtv-ch01/_definst_/smil:ch-01.smil/chunklist_b2192000_slita.m3u8"]
+  [0, "Canale di prova", "altri", ["https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"]],
+  [1, "Rai 1", "rai", [RAI + "2606803"], rp("rai1")],
+  [2, "Rai 2", "rai", [RAI + "308718"], rp("rai2")],
+  [3, "Rai 3", "rai", [RAI + "308709"], rp("rai3")],
+  [4, "Rete 4", "mediaset", [msf("r4")]],
+  [5, "Canale 5", "mediaset", [msf("c5")]],
+  [6, "Italia 1", "mediaset", [msf("i1")]],
+  [7, "La7", "altri", ["https://d3749synfikwkv.cloudfront.net/v1/master/3722c60a815c199d9c0ef36c5b73da68a62b09d1/cc-74ylxpgd78bpb/Live.m3u8"], "https://www.la7.it/dirette-tv"],
+  [8, "TV8", "altri", [], "https://tv8.it/streaming.html"],
+  [9, "Nove", "wbd", [wb("NOVE"), wbd(1, 1831, "nove")]],
+  [20, "20 Mediaset", "mediaset", [msf("lb")]],
+  [21, "Rai 4", "rai", [RAI + "746966"], rp("rai4")],
+  [22, "Iris", "mediaset", [msf("ki")]],
+  [23, "Rai 5", "rai", [RAI + "395276"], rp("rai5")],
+  [24, "Rai Movie", "rai", [RAI + "747002"], rp("raimovie")],
+  [25, "Rai Premium", "rai", [RAI + "746992"], rp("raipremium")],
+  [27, "Twentyseven", "mediaset", [msf("ts")]],
+  [28, "TV2000", "altri", ["https://hls-live-tv2000.akamaized.net/hls/live/2028510/tv2000/master.m3u8"]],
+  [29, "La7 Cinema", "altri", ["https://d15umi5iaezxgx.cloudfront.net/LA7D/CLN/HLS-B/Live.m3u8", "https://d15umi5iaezxgx.cloudfront.net/LA7D/CLN/HLS/Live.m3u8"], "https://www.la7.it/dirette-tv"],
+  [30, "La5", "mediaset", [msf("ka")]],
+  [31, "Real Time", "wbd", [wb("REALTIME"), wbd(2, 1835, "realtime")]],
+  [33, "Food Network", "wbd", [wb("FOODNETWORK"), wbd(3, 1836, "foodnetwork")]],
+  [34, "Cine34", "mediaset", [msf("b6")]],
+  [35, "Focus", "mediaset", [msf("fu")]],
+  [36, "RTL 102.5", "altri", ["https://dd782ed59e2a4e86aabf6fc508674b59.msvdn.net/live/S97044836/tbbP8T1ZRPBL/playlist_video.m3u8"]],
+  [37, "Warner TV", "wbd", [wb("WARNERTV"), wbd(4, 1837, "warnertv")]],
+  [38, "Giallo", "wbd", [wb("GIALLO"), wbd(5, 1838, "giallo")]],
+  [39, "Top Crime", "mediaset", [msf("lt")]],
+  [40, "Boing", "mediaset", [msf("kb")]],
+  [41, "K2", "wbd", [wb("K2"), wbd(6, 1839, "k2")]],
+  [42, "Rai Gulp", "rai", [RAI + "746953"], rp("raigulp")],
+  [43, "Rai Yoyo", "rai", [RAI + "746899"], rp("raiyoyo")],
+  [44, "Frisbee", "wbd", [wb("FRISBEE"), wbd(7, 1840, "frisbee")]],
+  [46, "Cartoonito", "mediaset", [msf("la")]],
+  [47, "Super!", "altri", ["https://vimnitaly.akamaized.net/hls/live/2094034/super/master.m3u8"]],
+  [48, "Rai News 24", "rai", ["https://rainews1-live.akamaized.net/hls/live/598326/rainews1/rainews1/playlist.m3u8", RAI + "1"], rp("rainews24")],
+  [49, "Italia 2", "mediaset", [msf("i2")]],
+  [51, "TGCom 24", "mediaset", [msf("kf")]],
+  [52, "DMAX", "wbd", [wb("DMAX"), wbd(8, 1841, "dmax")]],
+  [54, "Rai Storia", "rai", [RAI + "746990"], rp("raistoria")],
+  [55, "Mediaset Extra", "mediaset", [msf("kq")]],
+  [56, "HGTV", "wbd", [wb("HGTV"), wbd(9, 1842, "hgtv")]],
+  [57, "Rai Scuola", "rai", [RAI + "747011"], rp("raiscuola")],
+  [58, "Rai Sport", "rai", [RAI + "358025"], rp("raisport")],
+  [59, "Motor Trend", "wbd", [wb("MOTORTREND"), wbd(10, 1843, "motortrend")]],
+  [60, "Sportitalia", "altri", ["https://edge-001.streamup.eu/sportitalia/sihd_abr/playlist.m3u8", "https://sportsitalia-samsungitaly.amagi.tv/playlist.m3u8"]],
+  [64, "SuperTennis", "altri", ["https://live-embed.supertennix.hiway.media/restreamer/supertennix_client/gpu-a-c0-16/restreamer/outgest/aa3673f1-e178-44a9-a947-ef41db73211a/manifest.m3u8"]],
+  [69, "Deejay TV", "altri", ["https://4c4b867c89244861ac216426883d1ad0.msvdn.net/live/S85984808/sMO0tz9Sr2Rk/playlist.m3u8"]],
+  [70, "Radio Italia TV", "altri", ["https://radioitaliatv.akamaized.net/hls/live/2093117/RadioitaliaTV/master.m3u8"]]
 ];
 CHANNELS.sort(function (a, b) { return a[0] - b[0]; });
 
@@ -203,7 +207,8 @@ function stopPlayback() {
 }
 function play(i) {
   if (i < 0) i = LIST.length - 1; if (i >= LIST.length) i = 0;
-  current = i; var c = LIST[i], url = c[3];
+  current = i; var c = LIST[i];
+  if (!c[3].length && c[4]) { location.href = c[4]; return; } // solo sito ufficiale (es. TV8)
   mode = "player";
   gridScroll = window.pageYOffset || 0;
   document.getElementById("grid-view").style.display = "none";
@@ -212,15 +217,19 @@ function play(i) {
   hideMsg(); showOsd("Caricamento…");
   stopPlayback();
 
-  var isDash = url.indexOf(".mpd") !== -1;
-  tried = [];
-  if (isDash) {
-    if (ENV.nativeDash) playNative(url, function () { playDashJs(url); });
-    else playDashJs(url);
+  tried = []; trySource(c[3], 0);
+}
+function trySource(list, k) {
+  if (k >= list.length) return fail();
+  var url = list[k], next = function () { trySource(list, k + 1); };
+  if (list.length > 1) tried.push("— fonte " + (k + 1) + " di " + list.length);
+  if (url.indexOf(".mpd") !== -1) {
+    if (ENV.nativeDash) playNative(url, function () { playDashJs(url, next); });
+    else playDashJs(url, next);
   } else {
     // Prima il lettore della TV (non soggetto ai blocchi CORS), poi hls.js
-    if (ENV.nativeHls) playNative(url, function () { playHlsJs(url, null); });
-    else playHlsJs(url, function () { playNative(url, null); });
+    if (ENV.nativeHls) playNative(url, function () { playHlsJs(url, next); });
+    else playHlsJs(url, function () { playNative(url, next); });
   }
 }
 
@@ -262,16 +271,16 @@ function playHlsJs(url, next) {
   });
   hls.loadSource(url); hls.attachMedia(video); startPlay(); armTimeout(id, "hls.js", next);
 }
-function playDashJs(url) {
+function playDashJs(url, next) {
   stopPlayback(); var id = ++playId; nativeNext = null;
-  if (!ENV.dashjs || !ENV.mse) { tried.push("dash.js: non supportato"); return fail(); }
+  if (!ENV.dashjs || !ENV.mse) { tried.push("dash.js: non supportato"); return next ? next() : fail(); }
   dash = dashjs.MediaPlayer().create();
   dash.on("error", function (e) {
     if (id !== playId) return;
     var er = e && e.error ? (e.error.message || e.error.code || "") : "";
-    tried.push("dash.js: " + er); fail();
+    tried.push("dash.js: " + er); stopPlayback(); if (next) next(); else fail();
   });
-  dash.initialize(video, url, true); armTimeout(id, "dash.js", null);
+  dash.initialize(video, url, true); armTimeout(id, "dash.js", next);
 }
 video.addEventListener("playing", function () { clearTimeout(startTimer); showOsd(""); hideMsg(); });
 video.addEventListener("error", function () {
@@ -284,7 +293,9 @@ video.addEventListener("error", function () {
 });
 function fail() {
   clearTimeout(startTimer); playId++;
-  showMsg("Questo canale non parte ora.<br>Usa i pulsanti in basso per cambiare canale o tornare alla lista." +
+  var web = LIST[current][4];
+  showMsg("Questo canale non parte qui.<br>Usa i pulsanti in basso per cambiare canale o tornare alla lista." +
+    (web ? '<br><button id="b-web" style="margin-top:1.2vw;font:inherit;font-size:1.6vw;font-weight:600;color:#fff;background:#2f6fde;border:0;border-radius:.8vw;padding:1vw 2vw;cursor:pointer">Apri sul sito ufficiale</button>' : "") +
     '<div style="margin-top:1vw;font-size:1.05vw;color:#8a93a8;text-align:left">' +
     tried.join("<br>") + "<br>" + envText() + "</div>");
   showOsd("non disponibile");
@@ -314,7 +325,8 @@ function showControls() {
 document.getElementById("player-view").addEventListener("mousemove", showControls);
 document.getElementById("player-view").addEventListener("click", function (e) {
   var id = e.target.id;
-  if (id === "b-list") backToGrid();
+  if (id === "b-web") { location.href = LIST[current][4]; }
+  else if (id === "b-list") backToGrid();
   else if (id === "b-prev") play(current - 1);
   else if (id === "b-next") play(current + 1);
   else { showControls(); showOsd(""); }
@@ -381,7 +393,7 @@ function tick() {
   document.getElementById("clock").textContent = (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
 }
 tick(); setInterval(tick, 10000);
-document.getElementById("env").textContent = envText() + " · v3";
+document.getElementById("env").textContent = envText() + " · v4";
 if (location.search.indexOf("test") !== -1) runTest(); else render();
 
 // ---------- test di tutti i canali (apri la pagina con ?test) ----------
@@ -404,17 +416,24 @@ function runTest() {
         document.querySelector(".hint").textContent = "Test finito: " + okN + " su " + CHANNELS.length + " canali raggiungibili.";
       }
     };
-    var timer = setTimeout(function () { cell("nessuna risposta in 12s", false); cell = function () {}; }, 12000);
-    fetch(c[3], { cache: "no-store" }).then(function (r) {
-      return r.text().then(function (body) {
-        clearTimeout(timer);
-        var head = body.slice(0, 300);
-        var looks = head.indexOf("#EXTM3U") !== -1 || head.indexOf("<MPD") !== -1 || head.indexOf("<?xml") !== -1;
-        if (r.ok && looks) cell("OK", true);
-        else if (r.ok) cell("risponde ma non è un video (" + head.replace(/\s+/g, " ").slice(0, 60) + ")", false);
-        else cell("HTTP " + r.status, false);
-      });
-    }).catch(function (e) { clearTimeout(timer); cell("bloccato o indirizzo morto", false); });
+    if (!c[3].length) { cell("solo sito ufficiale", true); return; }
+    var notes = [];
+    (function testSrc(k) {
+      if (k >= c[3].length) return cell(notes.join(" · "), false);
+      var finished = false, tag = c[3].length > 1 ? "fonte " + (k + 1) + ": " : "";
+      var next = function (why) { if (finished) return; finished = true; notes.push(tag + why); testSrc(k + 1); };
+      setTimeout(function () { next("nessuna risposta in 12s"); }, 12000);
+      fetch(c[3][k], { cache: "no-store" }).then(function (r) {
+        return r.text().then(function (body) {
+          if (finished) return;
+          var head = body.slice(0, 300);
+          var looks = head.indexOf("#EXTM3U") !== -1 || head.indexOf("<MPD") !== -1 || head.indexOf("<?xml") !== -1;
+          if (r.ok && looks) { finished = true; cell("OK" + (k ? " (fonte " + (k + 1) + ")" : ""), true); }
+          else if (r.ok) next("risponde ma non è un video");
+          else next("HTTP " + r.status);
+        });
+      }).catch(function () { next("bloccato o indirizzo morto"); });
+    })(0);
   });
 }
 </script>
