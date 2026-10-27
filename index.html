@@ -248,7 +248,8 @@ function trySource(list, k, forceJs) {
     else playDashJs(url, next);
   } else {
     // Prima il lettore della TV (non soggetto ai blocchi CORS), poi hls.js
-    if (ENV.nativeHls) playNative(url, function () { playHlsJs(url, next); });
+    // ?hlsjs nell'indirizzo: prova hls.js prima del lettore TV (per confrontare i tempi di avvio)
+    if (ENV.nativeHls && !/[?&]hlsjs\b/.test(location.search)) playNative(url, function () { playHlsJs(url, next); });
     else playHlsJs(url, function () { playNative(url, next); });
   }
 }
