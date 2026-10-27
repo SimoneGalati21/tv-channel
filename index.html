@@ -152,6 +152,13 @@ var CHANNELS = [
 ];
 CHANNELS.sort(function (a, b) { return a[0] - b[0]; });
 
+// TV8 ha un token Sky che scade: lo prendo dalla lista tvita.m3u, che i manutentori tengono aggiornata
+var TV8_RE = /tvg-id="Tv8\.it"[^\n]*\r?\n(https?:\/\/\S+)/;
+fetch("https://maginetweb-arch.github.io/tileoplayer/tvita.m3u").then(function (r) { return r.text(); }).then(function (t) {
+  var m = t.match(TV8_RE);
+  for (var i = 0; m && i < CHANNELS.length; i++) if (CHANNELS[i][0] === 8) CHANNELS[i][3].push(m[1]);
+}).catch(function () {});
+
 // ---------- stato ----------
 var COLS = 6, focusIdx = 0, current = -1, mode = "grid";
 var favs = loadFavs();
