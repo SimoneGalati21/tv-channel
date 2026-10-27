@@ -247,10 +247,8 @@ function trySource(list, k, forceJs) {
     if (ENV.nativeDash) playNative(url, function () { playDashJs(url, next); });
     else playDashJs(url, next);
   } else {
-    // Prima il lettore della TV (non soggetto ai blocchi CORS), poi hls.js
-    // ?hlsjs nell'indirizzo: prova hls.js prima del lettore TV (per confrontare i tempi di avvio)
-    if (ENV.nativeHls && !/[?&]hlsjs\b/.test(location.search)) playNative(url, function () { playHlsJs(url, next); });
-    else playHlsJs(url, function () { playNative(url, next); });
+    // Prima hls.js (sul VIDAA parte molto prima del lettore TV), poi il lettore TV, che non è soggetto ai blocchi CORS
+    playHlsJs(url, function () { playNative(url, next); });
   }
 }
 
