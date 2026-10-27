@@ -90,7 +90,9 @@
 <script>
 // Canali in chiaro italiani: flussi pubblici gratuiti delle emittenti.
 // Alcuni funzionano solo da connessioni italiane.
-var RAI = "https://mediapolis.rai.it/relinker/relinkerServlet.htm?output=7&forceUserAgent=raiplayappletv&cont=";
+// Il relinker Rai dà CORS solo a www.raiplay.it, quindi hls.js lo blocca: RAI_PROXY = URL del Worker in proxy/worker.js
+var RAI_PROXY = "";
+var RAI = (RAI_PROXY || "https://mediapolis.rai.it/relinker/relinkerServlet.htm") + "?output=7&forceUserAgent=raiplayappletv&cont=";
 var MS = "https://live03-col.msf.cdn.mediaset.net/live/";
 var AM = "https://amg16146-wbdi-";
 function msf(code) { return MS + "ch-" + code + "/" + code + "-clr.isml/manifest.mpd"; }
