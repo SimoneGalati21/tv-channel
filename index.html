@@ -283,7 +283,8 @@ function playNative(url, next) {
 function playHlsJs(url, next) {
   stopPlayback(); var id = ++playId; nativeNext = null;
   if (!ENV.hlsjs) { tried.push("hls.js: non supportato"); return next ? next() : fail(); }
-  hls = new Hls({ maxBufferLength: 20, liveSyncDurationCount: 3 });
+  // stima iniziale 5 Mbit/s (default 0,5): parte dalla qualità alta invece di salire piano
+  hls = new Hls({ maxBufferLength: 20, liveSyncDurationCount: 3, abrEwmaDefaultEstimate: 5e6 });
   hls.on(Hls.Events.ERROR, function (ev, d) {
     if (!d.fatal || id !== playId) return;
     var code = d.response && d.response.code !== undefined ? " HTTP " + d.response.code : "";
@@ -305,6 +306,7 @@ function playDashJs(url, next) {
   dash.initialize(video, url, true); armTimeout(id, "dash.js", next);
 }
 video.addEventListener("playing", function () { clearTimeout(startTimer); showOsd(""); hideMsg(); });
+video.addEventListener("resize", function () { if (mode === "player") showOsd(""); }); // mostra la nuova risoluzione
 video.addEventListener("error", function () {
   if (!nativeNext || nativeNext.id !== playId) return;
   var codes = { 1: "interrotto", 2: "errore di rete", 3: "errore di decodifica", 4: "formato non supportato" };
@@ -324,7 +326,8 @@ function fail() {
 }
 function showOsd(state) {
   var c = LIST[current], o = document.getElementById("osd");
-  o.children[0].textContent = c[0]; o.children[1].textContent = c[1]; o.children[2].textContent = state || "";
+  o.children[0].textContent = c[0]; o.children[1].textContent = c[1];
+  o.children[2].textContent = state || (video.videoWidth ? video.videoWidth + "×" + video.videoHeight : "");
   o.children[3].innerHTML = osdEpg(c[0]);
   o.className = ""; clearTimeout(osdTimer);
   osdTimer = setTimeout(function () { if (!state) o.className = "hidden"; }, 3500);
