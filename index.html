@@ -4,85 +4,194 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TV Libera</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
+  /* Palette "Video Streaming/OTT" di ui-ux-pro-max: nero cinema, rosso play, focus bianco */
   :root {
-    --bg: #0b0d12; --panel: #151922; --tile: #1b2030; --text: #eef1f7;
-    --muted: #8a93a8; --accent: #4f8cff; --focus: #ffffff;
+    --bg: #000; --surface: #0c0c0d; --tile: #141416; --tile-hi: #26262b; --line: rgba(255,255,255,.09);
+    --text: #f8fafc; --muted: #94a3b8; --accent: #e11d48; --ring: #fff; --star: #fbbf24;
     --rai: #2f6fde; --mediaset: #e0453a; --wbd: #2bb5a0; --altri: #8b6ad8;
+    --r: .9vw; --ease: cubic-bezier(.2, .8, .2, 1);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { background: var(--bg); color: var(--text); min-height: 100%;
-    font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-
+    font-family: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  svg { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -.14em; flex-shrink: 0; }
   body.playing { overflow: hidden; }
-  #grid-view { padding: 0 3vw 3vw; }
-  header { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 2.2vw 0 1.2vw; display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 1.6vw; }
-  header h1 { font-size: 2.4vw; font-weight: 600; letter-spacing: .02em; }
-  header .hint { color: var(--muted); font-size: 1.05vw; }
-  #clock { font-size: 2vw; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .hidden { opacity: 0; pointer-events: none; }
 
-  #grid { display: flex; flex-wrap: wrap; gap: 1.1vw; padding: .6vw; }
-  .tile { width: calc((100% - 5 * 1.1vw) / 6); height: 10.6vw; background: var(--tile);
-    border-radius: .8vw; position: relative; padding: 1vw 1.1vw; display: flex; flex-direction: column;
-    justify-content: flex-end; border: .22vw solid transparent; transition: transform .12s, border-color .12s, background .12s; cursor: pointer; }
-  .tile .num { position: absolute; top: .8vw; left: 1.1vw; font-size: 1.2vw; color: var(--muted); font-variant-numeric: tabular-nums; }
-  .tile .bar { position: absolute; top: 0; left: 0; right: 0; height: .35vw; border-radius: .8vw .8vw 0 0; }
-  .tile .name { font-size: 1.45vw; font-weight: 600; line-height: 1.15; }
-  .tile .now { font-size: 1vw; color: var(--muted); margin-top: .35vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 1.3vw; }
-  .tile .prog { height: .25vw; background: rgba(255,255,255,.12); border-radius: .2vw; margin-top: .45vw; overflow: hidden; }
-  .tile .prog i { display: block; height: 100%; background: var(--accent); }
-  .tile .fav { position: absolute; top: .3vw; right: .3vw; font-size: 1.6vw; line-height: 1; color: #59617a;
-    padding: .5vw .7vw; border-radius: .6vw; }
-  .tile .fav.on { color: #ffcc4d; }
-  .tile .fav:hover { background: rgba(255,255,255,.12); color: #ffcc4d; }
-  .tile:hover, .tile.focus { border-color: var(--focus); background: #252c40; transform: scale(1.06); z-index: 2; }
-  .g-rai .bar { background: var(--rai); } .g-mediaset .bar { background: var(--mediaset); }
-  .g-wbd .bar { background: var(--wbd); } .g-altri .bar { background: var(--altri); }
+  /* ---------- griglia ---------- */
+  #grid-view { padding: 0 3.2vw 4vw; }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 2vw 0 1.4vw; }
+  .brand { display: flex; align-items: center; gap: .8vw; font-size: 1.9vw; font-weight: 800; letter-spacing: -.02em; }
+  .brand i { width: 1.1vw; height: 1.1vw; border-radius: 50%; background: var(--accent); box-shadow: 0 0 1.2vw rgba(225,29,72,.7); }
+  .hint { color: var(--muted); font-size: .95vw; margin-top: .3vw; }
+  .when { text-align: right; }
+  #clock { font-size: 2.1vw; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+  #date { color: var(--muted); font-size: .95vw; text-transform: capitalize; }
 
+  #hero { position: relative; display: flex; align-items: center; gap: 2.4vw; height: 14vw; padding: 0 2.6vw;
+    border-radius: 1.4vw; overflow: hidden; background: var(--surface); border: 1px solid var(--line); margin-bottom: 1.6vw; }
+  #hero:before { content: ""; position: absolute; inset: 0; opacity: .55; transition: background .4s var(--ease);
+    background: radial-gradient(80% 140% at 0% 50%, var(--glow, #333) 0%, transparent 60%); }
+  #hero > * { position: relative; }
+  .h-logo { width: 12vw; height: 8.4vw; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .h-logo img { max-width: 100%; max-height: 100%; }
+  .h-logo .txt { font-size: 2.4vw; font-weight: 800; text-align: center; }
+  .h-body { flex: 1; min-width: 0; }
+  .kicker { display: flex; align-items: center; gap: .8vw; font-size: 1vw; color: var(--muted); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+  .live { color: #fff; background: var(--accent); border-radius: .4vw; padding: .15vw .55vw; font-size: .8vw; font-weight: 800; letter-spacing: .08em; }
+  .h-title { font-size: 2.6vw; font-weight: 800; letter-spacing: -.02em; margin: .5vw 0 .3vw;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .h-time { font-size: 1.1vw; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .h-time b { color: var(--text); font-weight: 600; }
+  .prog { height: .3vw; background: rgba(255,255,255,.14); border-radius: .3vw; overflow: hidden; }
+  .prog i { display: block; height: 100%; background: var(--accent); border-radius: .3vw; }
+  .h-body .prog { width: 60%; margin-top: 1vw; }
+
+  #bar { display: flex; align-items: center; gap: .8vw; margin-bottom: 1.6vw; flex-wrap: wrap; }
+  .chip { font-size: 1.1vw; font-weight: 600; color: var(--muted); padding: .7vw 1.4vw; border-radius: 3vw;
+    background: var(--tile); border: 1px solid var(--line); transition: background .15s, color .15s, transform .15s var(--ease); }
+  .chip.on { color: #000; background: var(--text); }
+  .chip .n { opacity: .55; margin-left: .4vw; font-variant-numeric: tabular-nums; }
+  .spacer { flex: 1; }
+  .btn { display: inline-flex; align-items: center; gap: .6vw; font-size: 1.15vw; font-weight: 700; padding: .8vw 1.6vw;
+    border-radius: .8vw; background: var(--tile-hi); border: 1px solid var(--line); transition: background .15s, transform .15s var(--ease); }
+  .btn.primary { background: var(--accent); border-color: transparent; }
+  .chip:hover, .btn:hover, .kb { outline: .22vw solid var(--ring); outline-offset: .18vw; }
+
+  #grid { display: flex; flex-wrap: wrap; gap: 1.2vw; padding: .5vw; }
+  .tile { width: calc((100% - 5 * 1.2vw) / 6); height: 11.6vw; background: var(--tile); border-radius: var(--r);
+    position: relative; display: flex; flex-direction: column; overflow: hidden; cursor: pointer;
+    border: 1px solid var(--line); transition: transform .18s var(--ease), background .18s, box-shadow .18s; }
+  .tile .accent { position: absolute; left: 0; top: 0; bottom: 0; width: .3vw; }
+  .tile .num { position: absolute; top: .7vw; left: 1vw; font-size: .95vw; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .tile .fav { position: absolute; top: .35vw; right: .35vw; font-size: 1.4vw; color: #4b5162; padding: .4vw; border-radius: .5vw; line-height: 0; }
+  .tile .fav.on { color: var(--star); }
+  .tile .fav.on svg { fill: currentColor; }
+  .tile .fav:hover { color: var(--star); background: rgba(255,255,255,.1); }
+  .tile .logo { flex: 1; display: flex; align-items: center; justify-content: center; padding: 1.6vw 2.2vw .2vw; min-height: 0; }
+  .tile .logo img { max-width: 70%; max-height: 4.4vw; }
+  .tile .logo .txt { font-size: 1.5vw; font-weight: 800; text-align: center; line-height: 1.1; }
+  .tile .info { padding: 0 1vw .9vw 1.2vw; }
+  .tile .name { font-size: 1vw; font-weight: 700; }
+  .tile .now { font-size: .88vw; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 1.2vw; margin-top: .15vw; }
+  .tile .prog { margin-top: .45vw; height: .22vw; }
+  .tile.focus { background: var(--tile-hi); transform: scale(1.07); z-index: 2;
+    box-shadow: 0 0 0 .24vw var(--ring), 0 1.2vw 2.6vw rgba(0,0,0,.7); }
+  .g-rai .accent { background: var(--rai); } .g-mediaset .accent { background: var(--mediaset); }
+  .g-wbd .accent { background: var(--wbd); } .g-altri .accent { background: var(--altri); }
+  .empty { color: var(--muted); font-size: 1.3vw; padding: 3vw 0; }
+
+  /* ---------- player ---------- */
   #player-view { position: fixed; inset: 0; background: #000; display: none; }
-  #video { width: 100%; height: 100%; background: #000; }
-  #osd { position: absolute; left: 3vw; bottom: 3vw; background: rgba(10,12,18,.82); padding: 1.2vw 1.8vw;
-    border-radius: .8vw; display: flex; align-items: baseline; gap: 1.2vw; transition: opacity .4s; }
-  #osd .num { font-size: 2.4vw; color: var(--muted); font-variant-numeric: tabular-nums; }
-  #osd .name { font-size: 2.4vw; font-weight: 600; }
-  #osd .state { font-size: 1.2vw; color: var(--muted); }
-  #osd { flex-wrap: wrap; max-width: 55vw; }
-  #osd .epg { flex-basis: 100%; font-size: 1.3vw; color: var(--text); line-height: 1.5; }
-  #osd .epg b { color: var(--muted); font-weight: 500; }
-  #msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;
-    font-size: 1.6vw; color: var(--text); background: rgba(10,12,18,.85); padding: 1.6vw 2.4vw; border-radius: .8vw; display: none; max-width: 60vw; }
-  #numbuf { position: absolute; top: 3vw; right: 3vw; font-size: 4vw; font-weight: 700;
-    background: rgba(10,12,18,.82); padding: .6vw 1.4vw; border-radius: .8vw; display: none; font-variant-numeric: tabular-nums; }
-  .hidden { opacity: 0; }
-  #controls { position: absolute; right: 3vw; bottom: 3vw; display: flex; gap: 1vw; transition: opacity .4s; }
-  #controls button { font: inherit; font-size: 1.6vw; font-weight: 600; color: var(--text); background: rgba(21,25,34,.9);
-    border: .22vw solid rgba(255,255,255,.25); border-radius: .8vw; padding: 1vw 1.8vw; cursor: pointer; }
-  #controls button:hover { border-color: #fff; background: #2a3248; }
+  #video { width: 100%; height: 100%; background: #000; object-fit: contain; }
+  #hud { position: absolute; left: 0; right: 0; bottom: 0; padding: 8vw 3.2vw 2.6vw;
+    background: linear-gradient(to top, rgba(0,0,0,.92) 0%, rgba(0,0,0,.75) 45%, transparent 100%); transition: opacity .35s; }
+  .o-row { display: flex; align-items: center; gap: 2vw; }
+  .o-logo { width: 8vw; height: 5.4vw; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    background: rgba(255,255,255,.06); border-radius: var(--r); padding: .8vw; }
+  .o-logo img { max-width: 100%; max-height: 100%; }
+  .o-logo .txt { font-size: 1.4vw; font-weight: 800; text-align: center; }
+  .o-main { flex: 1; min-width: 0; }
+  .o-top { display: flex; align-items: center; gap: .9vw; font-size: 1.2vw; }
+  .o-num { color: var(--muted); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .o-name { font-weight: 800; }
+  .o-state { color: var(--muted); font-size: 1vw; }
+  .o-title { font-size: 2.3vw; font-weight: 800; letter-spacing: -.02em; margin: .3vw 0 .6vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .o-prog { display: flex; align-items: center; gap: 1vw; font-size: .95vw; color: var(--muted); font-variant-numeric: tabular-nums; max-width: 50vw; }
+  .o-prog .prog { flex: 1; }
+  .o-next { font-size: 1.05vw; color: var(--muted); margin-top: .6vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .o-next b { color: var(--text); font-weight: 600; }
+  .o-side { text-align: right; align-self: flex-start; }
+  .o-clock { font-size: 2vw; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .o-meta { font-size: .9vw; color: var(--muted); margin-top: .3vw; }
+  #controls { display: flex; gap: .8vw; margin-top: 1.6vw; flex-wrap: wrap; }
+  .ctl { display: flex; align-items: center; gap: .6vw; font-size: 1.05vw; font-weight: 600; padding: .75vw 1.3vw;
+    border-radius: .8vw; background: rgba(255,255,255,.1); border: 1px solid var(--line); transition: background .15s, transform .15s var(--ease); }
+  .ctl svg { font-size: 1.3vw; }
+  .ctl:hover, .ctl.kb { background: var(--text); color: #000; outline: none; }
+  .ctl.on svg { color: var(--star); fill: var(--star); }
+  .ctl.on:hover svg, .ctl.on.kb svg { color: #b45309; fill: #b45309; }
+  .ctl[disabled] { opacity: .35; pointer-events: none; }
+  #msg { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); text-align: center; font-size: 1.5vw; line-height: 1.5;
+    background: rgba(12,12,13,.94); border: 1px solid var(--line); padding: 2vw 2.6vw; border-radius: 1.2vw; display: none; max-width: 60vw; }
+  #msg .btn { margin-top: 1.2vw; }
+  #msg .diag { margin-top: 1.2vw; font-size: .95vw; color: var(--muted); text-align: left; }
+  .numbuf, #toast { position: absolute; top: 3vw; background: rgba(12,12,13,.9); border: 1px solid var(--line); border-radius: 1vw; display: none; }
+  .numbuf { right: 3vw; font-size: 4vw; font-weight: 800; padding: .6vw 1.6vw; font-variant-numeric: tabular-nums; }
+  #toast { left: 50%; transform: translateX(-50%); font-size: 1.3vw; font-weight: 600; padding: .9vw 1.8vw; }
+  #grid-view .numbuf { position: fixed; z-index: 9; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } .tile.focus { transform: none; } }
 </style>
 </head>
 <body>
 
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3L2.9 9.5l6.3-.9z"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></symbol>
+  <symbol id="i-audio" viewBox="0 0 24 24"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></symbol>
+  <symbol id="i-fit" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z" fill="currentColor"/></symbol>
+  <symbol id="i-web" viewBox="0 0 24 24"><path d="M14 3h7v7"/><path d="M10 14L21 3"/><path d="M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/></symbol>
+</svg>
+
 <div id="grid-view">
   <header>
     <div>
-      <h1>TV Libera</h1>
-      <div class="hint">Clicca un canale per guardarlo · ☆ per metterlo tra i preferiti · porta il puntatore in basso per scorrere</div>
+      <div class="brand"><i></i>TV Libera</div>
+      <div class="hint">Scegli con il puntatore o le frecce · stella, tasto giallo o OK tenuto premuto per i preferiti · numeri per andare al canale</div>
     </div>
-    <div style="text-align:right"><div id="clock"></div><div id="env" class="hint" style="font-size:.85vw"></div></div>
+    <div class="when"><div id="clock"></div><div id="date"></div></div>
   </header>
+  <section id="hero">
+    <div class="h-logo"></div>
+    <div class="h-body">
+      <div class="kicker"><span class="live">In onda</span><span class="h-ch"></span></div>
+      <div class="h-title"></div>
+      <div class="h-time"></div>
+      <div class="prog"><i></i></div>
+    </div>
+  </section>
+  <nav id="bar"></nav>
   <div id="grid"></div>
+  <div class="numbuf"></div>
 </div>
 
 <div id="player-view">
   <video id="video" autoplay playsinline></video>
-  <div id="osd"><span class="num"></span><span class="name"></span><span class="state"></span><div class="epg"></div></div>
-  <div id="msg"></div>
-  <div id="numbuf"></div>
-  <div id="controls">
-    <button id="b-list">☰ Canali</button>
-    <button id="b-prev">▲ Precedente</button>
-    <button id="b-next">▼ Successivo</button>
+  <div id="hud">
+    <div class="o-row">
+      <div class="o-logo"></div>
+      <div class="o-main">
+        <div class="o-top"><span class="o-num"></span><span class="o-name"></span><span class="live">Live</span><span class="o-state"></span></div>
+        <div class="o-title"></div>
+        <div class="o-prog"><span class="t0"></span><div class="prog"><i></i></div><span class="t1"></span></div>
+        <div class="o-next"></div>
+      </div>
+      <div class="o-side"><div class="o-clock"></div><div class="o-meta"></div></div>
+    </div>
+    <div id="controls">
+      <button class="ctl" data-a="list"><svg><use href="#i-grid"/></svg>Canali</button>
+      <button class="ctl" data-a="prev"><svg><use href="#i-up"/></svg>Precedente</button>
+      <button class="ctl" data-a="next"><svg><use href="#i-down"/></svg>Successivo</button>
+      <button class="ctl" data-a="last"><svg><use href="#i-back"/></svg><span>Ultimo canale</span></button>
+      <button class="ctl" data-a="fav"><svg><use href="#i-star"/></svg><span>Preferito</span></button>
+      <button class="ctl" data-a="audio"><svg><use href="#i-audio"/></svg><span>Audio</span></button>
+      <button class="ctl" data-a="fit"><svg><use href="#i-fit"/></svg><span>Formato</span></button>
+      <button class="ctl" data-a="sleep"><svg><use href="#i-moon"/></svg><span>Timer</span></button>
+    </div>
   </div>
+  <div id="msg"></div>
+  <div class="numbuf"></div>
+  <div id="toast"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
@@ -103,7 +212,6 @@ var WBD = "https://streaming.aurora.enhanced.live/live/mpc/enl0eG1mLmVncmVzcy5mZ
 function wb(code) { return WBD + code + "/CMAF/index.m3u8"; }
 function rp(slug) { return "https://www.raiplay.it/dirette/" + slug; }
 var CHANNELS = [
-  [0, "Canale di prova", "altri", ["https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"]],
   [1, "Rai 1", "rai", [RAI + "2606803"], rp("rai1")],
   [2, "Rai 2", "rai", [RAI + "308718"], rp("rai2")],
   [3, "Rai 3", "rai", [RAI + "308709"], rp("rai3")],
@@ -152,6 +260,20 @@ var CHANNELS = [
 ];
 CHANNELS.sort(function (a, b) { return a[0] - b[0]; });
 
+// loghi dal repo che mantiene tvita.m3u; se un logo manca si vede il nome
+var LOGO_BASE = "https://raw.githubusercontent.com/maginetweb-arch/TVITALIA/main/TVL/";
+var LOGOS = { 1: "rai1", 2: "rai2", 3: "rai3", 4: "rete4", 5: "canale5", 6: "italia1", 7: "la7", 8: "tv8", 9: "nove",
+  20: "20mediaset", 21: "rai4", 22: "iris", 23: "rai5", 24: "raimovie", 25: "raipremium", 27: "twentyseven", 28: "tv2000",
+  29: "LA7Cinema", 30: "la5", 31: "realtime", 33: "foodnetwork", 34: "cine34", 35: "focus", 36: "rtl1025tv", 37: "warnertv",
+  38: "giallo", 39: "topcrime", 40: "boing", 42: "raigulp", 43: "raiyoyo", 46: "cartoonito", 47: "super", 48: "rainews24",
+  49: "italia2", 51: "tgcom24", 52: "dmax", 54: "raistoria", 55: "mediasetextra", 56: "homegardentv", 57: "raiscuola",
+  58: "raisport", 60: "sportitalia", 64: "supertennis", 69: "deejaytv", 70: "radioitaliatv" };
+function logoHtml(c) {
+  var txt = "<span class=txt>" + c[1] + "</span>"; // senza virgolette: finisce anche dentro onerror="…"
+  if (!LOGOS[c[0]]) return txt;
+  return '<img alt="' + c[1] + '" src="' + LOGO_BASE + LOGOS[c[0]] + ".png\" onerror=\"this.outerHTML='" + txt + "'\">";
+}
+
 // TV8 ha un token Sky che scade: lo prendo dalla lista tvita.m3u, che i manutentori tengono aggiornata
 var TV8_RE = /tvg-id="Tv8\.it"[^\n]*\r?\n(https?:\/\/\S+)/;
 fetch("https://maginetweb-arch.github.io/tileoplayer/tvita.m3u").then(function (r) { return r.text(); }).then(function (t) {
@@ -159,57 +281,113 @@ fetch("https://maginetweb-arch.github.io/tileoplayer/tvita.m3u").then(function (
   for (var i = 0; m && i < CHANNELS.length; i++) if (CHANNELS[i][0] === 8) CHANNELS[i][3].push(m[1]);
 }).catch(function () {});
 
-// ---------- stato ----------
-var COLS = 6, focusIdx = 0, current = -1, mode = "grid";
-var favs = loadFavs();
-var hls = null, dash = null, osdTimer = null, numBuf = "", numTimer = null, okHold = null;
-var gridEl = document.getElementById("grid"), video = document.getElementById("video");
+// ---------- stato e impostazioni salvate ----------
+function load(k, d) { try { var v = localStorage.getItem("tvlibera-" + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } }
+function save(k, v) { try { localStorage.setItem("tvlibera-" + k, JSON.stringify(v)); } catch (e) {} }
+var COLS = 6, focusIdx = 0, current = -1, mode = "grid", zone = "grid", barIdx = 0;
+var favs = load("favs", []), filter = load("filter", "all"), lastNum = load("last", 0), prevNum = 0;
+var hls = null, dash = null, numBuf = "", numTimer = null, okHold = null;
+var gridEl = document.getElementById("grid"), barEl = document.getElementById("bar"), video = document.getElementById("video");
 
-function loadFavs() { try { return JSON.parse(localStorage.getItem("tvlibera-favs") || "[]"); } catch (e) { return []; } }
-function saveFavs() { try { localStorage.setItem("tvlibera-favs", JSON.stringify(favs)); } catch (e) {} }
+var FILTERS = [["all", "Tutti"], ["fav", "Preferiti"], ["rai", "Rai"], ["mediaset", "Mediaset"], ["wbd", "Discovery"], ["altri", "Altri"]];
 function isFav(n) { return favs.indexOf(n) !== -1; }
+function byNum(n) { for (var i = 0; i < CHANNELS.length; i++) if (CHANNELS[i][0] === n) return CHANNELS[i]; return null; }
+function matches(c, f) { return f === "all" || (f === "fav" ? isFav(c[0]) : c[2] === f); }
 function order() {
   // preferiti in testa, poi gli altri per numero
   var f = [], o = [];
-  for (var i = 0; i < CHANNELS.length; i++) (isFav(CHANNELS[i][0]) ? f : o).push(CHANNELS[i]);
+  for (var i = 0; i < CHANNELS.length; i++) if (matches(CHANNELS[i], filter)) (isFav(CHANNELS[i][0]) ? f : o).push(CHANNELS[i]);
   return f.concat(o);
 }
 var LIST = order();
 
 // ---------- griglia ----------
+function renderBar() {
+  var h = "";
+  for (var i = 0; i < FILTERS.length; i++) {
+    var n = 0; for (var k = 0; k < CHANNELS.length; k++) if (matches(CHANNELS[k], FILTERS[i][0])) n++;
+    h += '<button class="chip' + (FILTERS[i][0] === filter ? " on" : "") + '" data-f="' + FILTERS[i][0] + '">' + FILTERS[i][1] + '<span class="n">' + n + "</span></button>";
+  }
+  var last = byNum(lastNum);
+  if (last) h += '<span class="spacer"></span><button class="btn primary" data-f="resume"><svg><use href="#i-play"/></svg>Riprendi ' + last[1] + "</button>";
+  barEl.innerHTML = h;
+  markBar();
+}
+function markBar() {
+  for (var i = 0; i < barEl.querySelectorAll("button").length; i++) {
+    var b = barEl.querySelectorAll("button")[i];
+    b.className = b.className.replace(" kb", "") + (zone === "bar" && i === barIdx ? " kb" : "");
+  }
+}
 function render() {
+  renderBar();
+  if (focusIdx >= LIST.length) focusIdx = Math.max(0, LIST.length - 1);
   var html = "";
   for (var i = 0; i < LIST.length; i++) {
     var c = LIST[i];
-    html += '<div class="tile g-' + c[2] + (i === focusIdx ? " focus" : "") + '" data-i="' + i + '">' +
-      '<div class="bar"></div><div class="num">' + c[0] + '</div>' +
-      '<div class="fav' + (isFav(c[0]) ? ' on">★' : '">☆') + '</div>' +
-      '<div class="name">' + c[1] + '</div>' + tileEpg(c[0]) + '</div>';
+    html += '<div class="tile g-' + c[2] + (i === focusIdx && zone === "grid" ? " focus" : "") + '" data-i="' + i + '">' +
+      '<div class="accent"></div><div class="num">' + c[0] + '</div>' +
+      '<button class="fav' + (isFav(c[0]) ? " on" : "") + '" aria-label="Preferito"><svg><use href="#i-star"/></svg></button>' +
+      '<div class="logo">' + logoHtml(c) + '</div><div class="info"><div class="name">' + c[1] + "</div>" + tileEpg(c[0]) + "</div></div>";
   }
-  gridEl.innerHTML = html;
+  gridEl.innerHTML = html || '<div class="empty">Nessun canale qui. Nei Preferiti aggiungi canali con il tasto giallo o la stella.</div>';
+  renderHero();
   scrollToFocus();
 }
-function setFocus(i) {
+function setFocus(i, fromPointer) {
   if (i < 0 || i >= LIST.length) return;
   var old = gridEl.children[focusIdx]; if (old) old.className = old.className.replace(" focus", "");
-  focusIdx = i;
+  focusIdx = i; zone = "grid"; markBar();
   var el = gridEl.children[focusIdx]; if (el) el.className += " focus";
-  scrollToFocus();
+  renderHero();
+  if (!fromPointer) scrollToFocus();
 }
 function scrollToFocus() {
   var el = gridEl.children[focusIdx]; if (!el || mode !== "grid") return;
-  var r = el.getBoundingClientRect(), top = document.querySelector("header").offsetHeight;
-  if (r.top < top) window.scrollBy(0, r.top - top - 10);
-  else if (r.bottom > window.innerHeight) window.scrollBy(0, r.bottom - window.innerHeight + 10);
+  var r = el.getBoundingClientRect();
+  if (r.top < 20) window.scrollBy(0, r.top - 20);
+  else if (r.bottom > window.innerHeight - 20) window.scrollBy(0, r.bottom - window.innerHeight + 20);
+}
+var GLOW = { rai: "#2f6fde", mediaset: "#e0453a", wbd: "#2bb5a0", altri: "#8b6ad8" };
+function renderHero() {
+  var c = LIST[focusIdx], hero = document.getElementById("hero");
+  if (!c) { hero.style.display = "none"; return; }
+  hero.style.display = "";
+  hero.style.setProperty("--glow", GLOW[c[2]]);
+  hero.querySelector(".h-logo").innerHTML = logoHtml(c);
+  hero.querySelector(".h-ch").textContent = c[0] + " · " + c[1];
+  var n = nowNext(c[0]), title = hero.querySelector(".h-title"), time = hero.querySelector(".h-time"), bar = hero.querySelector(".prog");
+  if (n && n.now) {
+    title.textContent = n.now[2];
+    time.innerHTML = "<b>" + hm(n.now[0]) + " – " + hm(n.now[1]) + "</b>" + (n.next ? " · Dopo: " + hm(n.next[0]) + " " + esc(n.next[2]) : "");
+    bar.style.display = ""; bar.firstChild.style.width = pct(n.now) + "%";
+  } else {
+    title.textContent = c[1];
+    time.textContent = n && n.next ? "Dopo: " + hm(n.next[0]) + " " + n.next[2] : (c[3].length ? "Diretta" : "Disponibile sul sito ufficiale");
+    bar.style.display = "none";
+  }
+}
+function setFilter(f) {
+  filter = f; save("filter", f); LIST = order(); focusIdx = 0; render();
 }
 gridEl.addEventListener("click", function (e) {
-  var star = e.target.className && String(e.target.className).indexOf("fav") === 0;
   var t = e.target; while (t && t !== gridEl && !t.getAttribute("data-i")) t = t.parentNode;
-  if (!t || t === gridEl || !t.getAttribute) return;
+  if (!t || t === gridEl) return;
   focusIdx = +t.getAttribute("data-i");
-  if (star) { toggleFav(); return; }
+  if (e.target.closest && e.target.closest(".fav")) { toggleFav(LIST[focusIdx][0]); return; }
   play(focusIdx);
 });
+gridEl.addEventListener("mouseover", function (e) {
+  var t = e.target; while (t && t !== gridEl && !t.getAttribute("data-i")) t = t.parentNode;
+  if (t && t !== gridEl && +t.getAttribute("data-i") !== focusIdx) setFocus(+t.getAttribute("data-i"), true);
+});
+barEl.addEventListener("click", function (e) {
+  var b = e.target.closest ? e.target.closest("button") : null; if (!b) return;
+  barAction(b.getAttribute("data-f"));
+});
+function barAction(f) {
+  if (f === "resume") playNum(lastNum); else setFilter(f);
+}
 
 // ---------- player ----------
 function stopPlayback() {
@@ -217,26 +395,35 @@ function stopPlayback() {
   if (dash) { try { dash.reset(); } catch (e) {} dash = null; }
   try { video.pause(); video.removeAttribute("src"); video.load(); } catch (e) {}
 }
+function playNum(n) {
+  for (var i = 0; i < LIST.length; i++) if (LIST[i][0] === n) return play(i);
+  if (!byNum(n)) return;
+  filter = "all"; save("filter", filter); LIST = order(); renderBar();
+  for (i = 0; i < LIST.length; i++) if (LIST[i][0] === n) return play(i);
+}
 function play(i) {
+  if (!LIST.length) return;
   if (i < 0) i = LIST.length - 1; if (i >= LIST.length) i = 0;
-  current = i; var c = LIST[i];
+  var c = LIST[i];
+  if (lastNum !== c[0]) prevNum = lastNum; // lastNum = ultimo canale guardato prima di questo
+  current = i; focusIdx = i; lastNum = c[0]; save("last", lastNum);
+  if (mode !== "player") gridScroll = window.pageYOffset || 0;
   mode = "player";
-  gridScroll = window.pageYOffset || 0;
   document.getElementById("grid-view").style.display = "none";
   document.getElementById("player-view").style.display = "block";
-  document.body.className = "playing"; showControls();
-  hideMsg(); showOsd("Caricamento…");
+  document.body.className = "playing";
+  hideMsg(); showHud("Caricamento…");
   stopPlayback();
 
   tried = []; stuck = 0; recover = 0;
-  if (!c[3].length) { // nessun flusso diretto (es. TV8): schermata con guida e pulsante
+  if (!c[3].length) { // nessun flusso diretto (es. TV8 prima che arrivi la lista): pulsante per il sito
     stopPlayback(); playId++;
-    showMsg(c[1] + " non ha una diretta da incorporare: si vede sul sito ufficiale." +
-      '<br><button id="b-web" style="margin-top:1.2vw;font:inherit;font-size:1.6vw;font-weight:600;color:#fff;background:#2f6fde;border:0;border-radius:.8vw;padding:1vw 2vw;cursor:pointer">Apri ' + c[1] + ' sul sito ufficiale</button>');
-    showOsd("solo sito ufficiale"); return;
+    showMsg(c[1] + " non ha una diretta da incorporare: si vede sul sito ufficiale." + webButton("Apri " + c[1] + " sul sito ufficiale"));
+    showHud("solo sito ufficiale"); return;
   }
   trySource(c[3], 0);
 }
+function webButton(label) { return '<br><button class="btn primary" data-a="web"><svg><use href="#i-web"/></svg>' + label + "</button>"; }
 function trySource(list, k, forceJs) {
   if (k >= list.length) return fail();
   curList = list; curK = k;
@@ -290,6 +477,7 @@ function playHlsJs(url, next) {
     tried.push("hls.js: " + d.details + code);
     stopPlayback(); if (next) next(); else fail();
   });
+  hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, updateControls);
   engine = { kind: "hlsjs", list: curList, k: curK };
   hls.loadSource(url); hls.attachMedia(video); startPlay(); armTimeout(id, "hls.js", next);
 }
@@ -297,6 +485,8 @@ function playDashJs(url, next) {
   stopPlayback(); var id = ++playId; nativeNext = null;
   if (!ENV.dashjs || !ENV.mse) { tried.push("dash.js: non supportato"); return next ? next() : fail(); }
   dash = dashjs.MediaPlayer().create();
+  // come per hls.js: 5 Mbit/s di partenza invece di salire piano dalla qualità più bassa
+  dash.updateSettings({ streaming: { abr: { initialBitrate: { video: 5000 } } } });
   dash.on("error", function (e) {
     if (id !== playId) return;
     var er = e && e.error ? (e.error.message || e.error.code || "") : "";
@@ -304,8 +494,8 @@ function playDashJs(url, next) {
   });
   dash.initialize(video, url, true); armTimeout(id, "dash.js", next);
 }
-video.addEventListener("playing", function () { clearTimeout(startTimer); showOsd(""); hideMsg(); });
-video.addEventListener("resize", function () { if (mode === "player") showOsd(""); }); // mostra la nuova risoluzione
+video.addEventListener("playing", function () { clearTimeout(startTimer); hideMsg(); showHud(""); });
+video.addEventListener("resize", function () { if (mode === "player") updateHud(""); }); // aggiorna la risoluzione
 video.addEventListener("error", function () {
   if (!nativeNext || nativeNext.id !== playId) return;
   var codes = { 1: "interrotto", 2: "errore di rete", 3: "errore di decodifica", 4: "formato non supportato" };
@@ -317,29 +507,133 @@ video.addEventListener("error", function () {
 function fail() {
   clearTimeout(startTimer); playId++;
   var web = LIST[current][4];
-  showMsg("Questo canale non parte qui.<br>Usa i pulsanti in basso per cambiare canale o tornare alla lista." +
-    (web ? '<br><button id="b-web" style="margin-top:1.2vw;font:inherit;font-size:1.6vw;font-weight:600;color:#fff;background:#2f6fde;border:0;border-radius:.8vw;padding:1vw 2vw;cursor:pointer">Apri sul sito ufficiale</button>' : "") +
-    '<div style="margin-top:1vw;font-size:1.05vw;color:#8a93a8;text-align:left">' +
-    tried.join("<br>") + "<br>" + envText() + "</div>");
-  showOsd("non disponibile");
-}
-function showOsd(state) {
-  var c = LIST[current], o = document.getElementById("osd");
-  o.children[0].textContent = c[0]; o.children[1].textContent = c[1];
-  o.children[2].textContent = state || (video.videoWidth ? video.videoWidth + "×" + video.videoHeight : "");
-  o.children[3].innerHTML = osdEpg(c[0]);
-  o.className = ""; clearTimeout(osdTimer);
-  osdTimer = setTimeout(function () { if (!state) o.className = "hidden"; }, 3500);
+  showMsg("Questo canale non parte qui.<br>Cambia canale con su/giù oppure torna alla lista." +
+    (web ? webButton("Apri sul sito ufficiale") : "") +
+    '<div class="diag">' + tried.join("<br>") + "<br>" + envText() + "</div>");
+  showHud("non disponibile");
 }
 function showMsg(t) { var m = document.getElementById("msg"); m.innerHTML = t; m.style.display = "block"; }
 function hideMsg() { document.getElementById("msg").style.display = "none"; }
 function backToGrid() {
-  stopPlayback(); mode = "grid";
+  stopPlayback(); mode = "grid"; zone = "grid"; hudFocus = -1;
   document.getElementById("player-view").style.display = "none";
   document.getElementById("grid-view").style.display = "block";
-  document.body.className = ""; window.scrollTo(0, gridScroll);
+  document.body.className = ""; render(); window.scrollTo(0, gridScroll);
   setFocus(current < 0 ? 0 : current);
 }
+
+// ---------- barra in sovrimpressione ----------
+var hudTimer = null, hudFocus = -1, toastTimer = null;
+function updateHud(state) {
+  var c = LIST[current], h = document.getElementById("hud");
+  if (!c) return;
+  h.querySelector(".o-logo").innerHTML = logoHtml(c);
+  h.querySelector(".o-num").textContent = c[0];
+  h.querySelector(".o-name").textContent = c[1];
+  h.querySelector(".o-state").textContent = state || "";
+  var n = nowNext(c[0]), bar = h.querySelector(".o-prog");
+  h.querySelector(".o-title").textContent = n && n.now ? n.now[2] : c[1];
+  if (n && n.now) {
+    bar.style.display = ""; bar.querySelector(".t0").textContent = hm(n.now[0]); bar.querySelector(".t1").textContent = hm(n.now[1]);
+    bar.querySelector("i").style.width = pct(n.now) + "%";
+  } else bar.style.display = "none";
+  h.querySelector(".o-next").innerHTML = n && n.next ? "<b>Dopo</b> " + hm(n.next[0]) + " · " + esc(n.next[2]) : "";
+  var meta = [];
+  if (video.videoWidth) meta.push(video.videoWidth + "×" + video.videoHeight);
+  if (sleepEnd) meta.push("timer " + Math.max(1, Math.ceil((sleepEnd - Date.now()) / 60000)) + " min");
+  h.querySelector(".o-meta").textContent = meta.join(" · ");
+  h.querySelector(".o-clock").textContent = clockText();
+  updateControls();
+}
+function showHud(state) {
+  var h = document.getElementById("hud");
+  updateHud(state); h.className = ""; clearTimeout(hudTimer);
+  // resta visibile mentre carica, se c'è un errore o se si stanno usando i pulsanti
+  hudTimer = setTimeout(function () {
+    if (!state && hudFocus < 0) h.className = "hidden";
+  }, 5000);
+}
+function hideHud() { hudFocus = -1; markControls(); document.getElementById("hud").className = "hidden"; }
+function ctlButtons() { return document.getElementById("controls").querySelectorAll(".ctl"); }
+function markControls() {
+  var b = ctlButtons();
+  for (var i = 0; i < b.length; i++) b[i].className = b[i].className.replace(" kb", "") + (i === hudFocus ? " kb" : "");
+}
+function audioInfo() {
+  if (hls && hls.audioTracks && hls.audioTracks.length > 1) {
+    return { names: hls.audioTracks.map(function (t) { return t.name || t.lang || "Traccia"; }), cur: hls.audioTrack, set: function (i) { hls.audioTrack = i; } };
+  }
+  if (dash) {
+    try {
+      var t = dash.getTracksFor("audio"); if (t.length < 2) return null;
+      return { names: t.map(function (x) { return (x.labels && x.labels[0] && x.labels[0].text) || x.lang || "Traccia"; }),
+        cur: t.indexOf(dash.getCurrentTrackFor("audio")), set: function (i) { dash.setCurrentTrack(t[i]); } };
+    } catch (e) { return null; }
+  }
+  return null;
+}
+function updateControls() {
+  var c = LIST[current]; if (!c) return;
+  var b = document.getElementById("controls");
+  var fav = b.querySelector('[data-a="fav"]');
+  fav.className = "ctl" + (isFav(c[0]) ? " on" : "");
+  fav.querySelector("span").textContent = isFav(c[0]) ? "Nei preferiti" : "Preferito";
+  var last = byNum(prevNum), lb = b.querySelector('[data-a="last"]');
+  lb.disabled = !last; lb.querySelector("span").textContent = last ? "Torna a " + last[1] : "Ultimo canale";
+  var a = audioInfo(), ab = b.querySelector('[data-a="audio"]');
+  ab.disabled = !a; ab.querySelector("span").textContent = a ? "Audio: " + a.names[a.cur] : "Audio";
+  b.querySelector('[data-a="fit"] span').textContent = "Formato: " + FITS[fitIdx][1];
+  b.querySelector('[data-a="sleep"] span').textContent = sleepEnd ? "Timer: " + Math.max(1, Math.ceil((sleepEnd - Date.now()) / 60000)) + " min" : "Timer";
+  markControls();
+}
+function toast(t) {
+  var el = document.getElementById("toast"); el.textContent = t; el.style.display = "block";
+  clearTimeout(toastTimer); toastTimer = setTimeout(function () { el.style.display = "none"; }, 2200);
+}
+function action(a) {
+  var c = LIST[current];
+  if (a === "list") backToGrid();
+  else if (a === "prev") play(current - 1);
+  else if (a === "next") play(current + 1);
+  else if (a === "last") { if (byNum(prevNum)) playNum(prevNum); }
+  else if (a === "fav") { toggleFav(c[0]); toast(isFav(c[0]) ? c[1] + " aggiunto ai preferiti" : c[1] + " tolto dai preferiti"); }
+  else if (a === "audio") { var au = audioInfo(); if (au) { au.set((au.cur + 1) % au.names.length); toast("Audio: " + au.names[(au.cur + 1) % au.names.length]); } }
+  else if (a === "fit") { setFit(fitIdx + 1); toast("Formato: " + FITS[fitIdx][1]); }
+  else if (a === "sleep") cycleSleep();
+  else if (a === "web") { location.href = c[4]; return; }
+  else if (a === "resume") { play(current); return; }
+  if (mode === "player") showHud("");
+}
+var playerView = document.getElementById("player-view");
+playerView.addEventListener("mousemove", function () { if (document.getElementById("hud").className) showHud(""); });
+playerView.addEventListener("click", function (e) {
+  var b = e.target.closest ? e.target.closest("[data-a]") : null;
+  if (b) action(b.getAttribute("data-a")); else showHud("");
+});
+
+// ---------- formato immagine ----------
+var FITS = [["contain", "Adatta"], ["cover", "Riempi"], ["fill", "Estendi"]];
+var fitIdx = load("fit", 0) % FITS.length;
+function setFit(i) { fitIdx = i % FITS.length; video.style.objectFit = FITS[fitIdx][0]; save("fit", fitIdx); }
+setFit(fitIdx);
+
+// ---------- timer di spegnimento: ferma la riproduzione (lo spegnimento della TV non è accessibile da una pagina web) ----------
+var SLEEP_STEPS = [0, 30, 60, 90, 120], sleepEnd = 0;
+function cycleSleep() {
+  var left = sleepEnd ? (sleepEnd - Date.now()) / 60000 : 0, next = 0;
+  for (var i = 0; i < SLEEP_STEPS.length; i++) if (SLEEP_STEPS[i] > left + 1) { next = SLEEP_STEPS[i]; break; }
+  sleepEnd = next ? Date.now() + next * 60000 : 0;
+  toast(next ? "La riproduzione si ferma tra " + next + " minuti" : "Timer disattivato");
+}
+setInterval(function () {
+  if (!sleepEnd || Date.now() < sleepEnd) return;
+  sleepEnd = 0;
+  if (mode !== "player") return;
+  stopPlayback(); playId++; clearTimeout(startTimer);
+  showMsg("Timer scaduto: la riproduzione è stata fermata.<br>" +
+    '<button class="btn primary" data-a="resume"><svg><use href="#i-play"/></svg>Riprendi ' + LIST[current][1] + "</button>");
+  showHud("in pausa");
+}, 15000);
 
 // ---------- recupero automatico se il video si blocca ----------
 var engine = null, curList = null, curK = 0, stuck = 0, lastT = -1, started = false;
@@ -350,7 +644,7 @@ setInterval(function () {
     stuck++;
     if (stuck === 3) {            // ~12s fermo: riavvia la diretta
       var e = engine; stuck = 0; started = false; recover++;
-      showOsd("riconnessione…");
+      showHud("riconnessione…");
       // dal secondo blocco in poi prova il lettore web invece di quello della TV
       trySource(e.list, e.k, recover >= 2 && e.kind === "native");
     }
@@ -369,6 +663,7 @@ function loadEpg() {
 }
 function hm(t) { var d = new Date(t * 1000), h = d.getHours(), m = d.getMinutes(); return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m; }
 function esc(t) { return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
+function pct(p) { return Math.max(0, Math.min(100, (Date.now() / 1000 - p[0]) / (p[1] - p[0]) * 100)).toFixed(0); }
 function nowNext(num) {
   var l = EPG[num]; if (!l) return null;
   var t = Date.now() / 1000;
@@ -378,55 +673,40 @@ function nowNext(num) {
 }
 function tileEpg(num) {
   var n = nowNext(num); if (!n) return '<div class="now"></div>';
-  if (!n.now) return '<div class="now">' + hm(n.next[0]) + " " + esc(n.next[2]) + '</div>';
-  var pct = Math.max(0, Math.min(100, (Date.now() / 1000 - n.now[0]) / (n.now[1] - n.now[0]) * 100));
-  return '<div class="now">' + esc(n.now[2]) + '</div><div class="prog"><i style="width:' + pct.toFixed(0) + '%"></i></div>';
-}
-function osdEpg(num) {
-  var n = nowNext(num); if (!n) return "";
-  var h = "";
-  if (n.now) h += "<b>Ora</b> " + esc(n.now[2]) + " <b>fino alle " + hm(n.now[1]) + "</b>";
-  if (n.next) h += (h ? "<br>" : "") + "<b>Dopo</b> " + esc(n.next[2]) + " <b>alle " + hm(n.next[0]) + "</b>";
-  return h;
+  if (!n.now) return '<div class="now">' + hm(n.next[0]) + " " + esc(n.next[2]) + "</div>";
+  return '<div class="now">' + esc(n.now[2]) + '</div><div class="prog"><i style="width:' + pct(n.now) + '%"></i></div>';
 }
 loadEpg(); setInterval(loadEpg, 30 * 60000);
 setInterval(function () { if (mode === "grid") render(); }, 60000);
-
-// ---------- pulsanti a schermo (puntatore della TV) ----------
-var gridScroll = 0, ctrlTimer = null;
-function showControls() {
-  var c = document.getElementById("controls"); c.className = ""; clearTimeout(ctrlTimer);
-  ctrlTimer = setTimeout(function () { c.className = "hidden"; }, 5000);
-}
-document.getElementById("player-view").addEventListener("mousemove", showControls);
-document.getElementById("player-view").addEventListener("click", function (e) {
-  var id = e.target.id;
-  if (id === "b-web") { location.href = LIST[current][4]; }
-  else if (id === "b-list") backToGrid();
-  else if (id === "b-prev") play(current - 1);
-  else if (id === "b-next") play(current + 1);
-  else { showControls(); showOsd(""); }
-});
+var gridScroll = 0;
 
 // ---------- numeri ----------
 function typeNum(d) {
   numBuf = (numBuf + d).slice(-3);
-  var b = document.getElementById("numbuf");
-  if (mode === "player") { b.textContent = numBuf; b.style.display = "block"; }
+  var b = document.getElementById(mode === "player" ? "player-view" : "grid-view").querySelector(".numbuf");
+  b.textContent = numBuf; b.style.display = "block";
   clearTimeout(numTimer);
   numTimer = setTimeout(function () {
     var n = +numBuf; numBuf = ""; b.style.display = "none";
-    for (var i = 0; i < LIST.length; i++) if (LIST[i][0] === n) { setFocus(i); if (mode === "player") play(i); return; }
+    if (!byNum(n)) return;
+    if (mode === "player") return playNum(n);
+    for (var i = 0; i < LIST.length; i++) if (LIST[i][0] === n) return setFocus(i);
+    filter = "all"; save("filter", filter); LIST = order(); render();
+    for (i = 0; i < LIST.length; i++) if (LIST[i][0] === n) return setFocus(i);
   }, 1400);
 }
 
 // ---------- preferiti ----------
-function toggleFav() {
-  var c = LIST[focusIdx], n = c[0], k = favs.indexOf(n);
+function toggleFav(n) {
+  var k = favs.indexOf(n);
   if (k === -1) favs.push(n); else favs.splice(k, 1);
-  saveFavs(); LIST = order();
-  for (var i = 0; i < LIST.length; i++) if (LIST[i][0] === n) focusIdx = i;
-  render();
+  save("favs", favs);
+  var curNum = current >= 0 && LIST[current] ? LIST[current][0] : -1;
+  LIST = order();
+  // tolto dai preferiti il canale in onda mentre il filtro è "Preferiti": passo a "Tutti" per non perderlo
+  if (mode === "player" && !matches(byNum(curNum), filter)) { filter = "all"; save("filter", filter); LIST = order(); }
+  for (var i = 0; i < LIST.length; i++) { if (LIST[i][0] === n) focusIdx = i; if (LIST[i][0] === curNum) current = i; }
+  if (mode === "grid") render(); else updateControls();
 }
 
 // ---------- telecomando ----------
@@ -437,43 +717,72 @@ document.addEventListener("keydown", function (e) {
   if (k >= 96 && k <= 105) { typeNum(String(k - 96)); e.preventDefault(); return; }
 
   if (mode === "grid") {
+    var nb = barEl.querySelectorAll("button").length;
+    if (zone === "bar") {
+      if (k === 37) barIdx = Math.max(0, barIdx - 1);
+      else if (k === 39) barIdx = Math.min(nb - 1, barIdx + 1);
+      else if (k === 40 && LIST.length) { setFocus(focusIdx); return e.preventDefault(); }
+      else if (k === 13) { barAction(barEl.querySelectorAll("button")[barIdx].getAttribute("data-f")); return e.preventDefault(); }
+      else return;
+      markBar(); e.preventDefault(); return;
+    }
     if (k === 37) setFocus(focusIdx - 1);
     else if (k === 39) setFocus(focusIdx + 1);
-    else if (k === 38) setFocus(focusIdx - COLS);
+    else if (k === 38) {
+      if (focusIdx < COLS) { zone = "bar"; var old = gridEl.children[focusIdx]; if (old) old.className = old.className.replace(" focus", ""); markBar(); window.scrollTo(0, 0); }
+      else setFocus(focusIdx - COLS);
+    }
     else if (k === 40) setFocus(Math.min(focusIdx + COLS, LIST.length - 1));
-    else if (k === 405 || k === 70) toggleFav(); // tasto giallo o F
+    else if (k === 405 || k === 70) { if (LIST[focusIdx]) toggleFav(LIST[focusIdx][0]); } // tasto giallo o F
+    else if (k === 406 && byNum(lastNum)) playNum(lastNum); // tasto blu: riprendi
     else if (k === 13) {
-      if (e.repeat) return;
-      okHold = setTimeout(function () { okHold = "done"; toggleFav(); }, 800);
+      if (e.repeat || !LIST.length) return;
+      okHold = setTimeout(function () { okHold = "done"; toggleFav(LIST[focusIdx][0]); }, 800);
     } else return;
     e.preventDefault();
   } else {
-    if (k === 38 || k === 33 || k === 427) play(current - 1);
+    var nc = ctlButtons().length;
+    if (hudFocus >= 0 && (k === 37 || k === 39)) { hudFocus = (hudFocus + (k === 39 ? 1 : nc - 1)) % nc; showHud(""); markControls(); }
+    else if (hudFocus >= 0 && k === 13) { if (!e.repeat) action(ctlButtons()[hudFocus].getAttribute("data-a")); }
+    else if (k === 13 && document.getElementById("msg").style.display === "block" && document.getElementById("msg").querySelector("[data-a]")) {
+      action(document.getElementById("msg").querySelector("[data-a]").getAttribute("data-a"));
+    }
+    else if (k === 13 || k === 37 || k === 39) { hudFocus = 0; showHud(""); markControls(); }
+    else if (k === 38 || k === 33 || k === 427) play(current - 1);
     else if (k === 40 || k === 34 || k === 428) play(current + 1);
-    else if (k === 13 || k === 37 || k === 39) showOsd("");
-    else if (BACK.indexOf(k) !== -1) backToGrid();
+    else if (k === 403) action("fit");   // rosso
+    else if (k === 404) action("audio"); // verde
+    else if (k === 405) action("fav");   // giallo
+    else if (k === 406) action("last");  // blu
+    else if (BACK.indexOf(k) !== -1) { if (hudFocus >= 0) hideHud(); else backToGrid(); }
     else return;
     e.preventDefault();
   }
 });
 document.addEventListener("keyup", function (e) {
-  if (mode === "grid" && e.keyCode === 13) {
+  if (mode === "grid" && zone === "grid" && e.keyCode === 13) {
     if (okHold === "done") { okHold = null; return; }
+    if (okHold === null) return;
     clearTimeout(okHold); okHold = null; play(focusIdx);
   }
 });
 
 // ---------- orologio ----------
+var GIORNI = ["domenica", "lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato"];
+var MESI = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"];
+function clockText() { var d = new Date(), h = d.getHours(), m = d.getMinutes(); return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m; }
 function tick() {
-  var d = new Date(), h = d.getHours(), m = d.getMinutes();
-  document.getElementById("clock").textContent = (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
+  var d = new Date();
+  document.getElementById("clock").textContent = clockText();
+  document.getElementById("date").textContent = GIORNI[d.getDay()] + " " + d.getDate() + " " + MESI[d.getMonth()];
+  if (mode === "player" && !document.getElementById("hud").className) document.querySelector(".o-clock").textContent = clockText();
 }
 tick(); setInterval(tick, 10000);
-document.getElementById("env").textContent = envText() + " · v6";
 if (location.search.indexOf("test") !== -1) runTest(); else render();
 
 // ---------- test di tutti i canali (apri la pagina con ?test) ----------
 function runTest() {
+  document.getElementById("hero").style.display = "none"; barEl.style.display = "none";
   document.querySelector(".hint").textContent = "Test dei canali in corso… (" + CHANNELS.length + " canali)";
   var rows = [], done = 0;
   gridEl.style.display = "block";
@@ -481,7 +790,7 @@ function runTest() {
   var t = document.getElementById("t");
   CHANNELS.forEach(function (c, i) {
     var tr = document.createElement("tr");
-    tr.innerHTML = '<td style="padding:4px 10px;color:#8a93a8">' + c[0] + '</td><td style="padding:4px 10px">' + c[1] +
+    tr.innerHTML = '<td style="padding:4px 10px;color:#94a3b8">' + c[0] + '</td><td style="padding:4px 10px">' + c[1] +
       '</td><td style="padding:4px 10px" id="r' + i + '">…</td>';
     t.appendChild(tr);
     var cell = function (txt, ok) {
@@ -489,7 +798,7 @@ function runTest() {
       rows[i] = c[0] + " " + c[1] + ": " + txt;
       if (++done === CHANNELS.length) {
         var okN = 0; for (var k = 0; k < rows.length; k++) if (rows[k].indexOf(": OK") !== -1) okN++;
-        document.querySelector(".hint").textContent = "Test finito: " + okN + " su " + CHANNELS.length + " canali raggiungibili.";
+        document.querySelector(".hint").textContent = "Test finito: " + okN + " su " + CHANNELS.length + " canali raggiungibili. " + envText();
       }
     };
     if (!c[3].length) { cell("solo sito ufficiale", true); return; }

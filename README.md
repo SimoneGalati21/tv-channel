@@ -6,6 +6,8 @@ Apri sul browser della TV: https://mirkomario.github.io/tv-channel/
 
 Telecomando: frecce + OK per scegliere, su/giù o CH+/CH- per cambiare canale, numeri per andare al canale, OK tenuto premuto o tasto giallo per i preferiti, Indietro per tornare alla lista.
 
+Durante la visione OK apre i pulsanti: ultimo canale (tasto blu), preferito (giallo), lingua audio (verde), formato immagine (rosso) e timer che ferma la riproduzione. Nella lista: filtri per gruppo, "Riprendi" l'ultimo canale visto, e in alto cosa va in onda sul canale selezionato.
+
 Solo flussi gratuiti e pubblici delle emittenti; alcuni funzionano solo dall'Italia.
 
 ## Canali Rai
