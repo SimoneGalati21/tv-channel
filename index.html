@@ -415,7 +415,7 @@ function play(i) {
   hideMsg(); showHud("Caricamento…");
   stopPlayback();
 
-  tried = []; stuck = 0; recover = 0;
+  tried = []; stuck = 0; recover = 0; cancelRetry(); retryN = 0; everPlayed = false;
   if (!c[3].length) { // nessun flusso diretto (es. TV8 prima che arrivi la lista): pulsante per il sito
     stopPlayback(); playId++;
     showMsg(c[1] + " non ha una diretta da incorporare: si vede sul sito ufficiale." + webButton("Apri " + c[1] + " sul sito ufficiale"));
@@ -492,6 +492,7 @@ function playDashJs(url, next) {
     var er = e && e.error ? (e.error.message || e.error.code || "") : "";
     tried.push("dash.js: " + er); stopPlayback(); if (next) next(); else fail();
   });
+  engine = { kind: "dash", list: curList, k: curK }; // senza, il controllo blocchi riavviava il canale HLS visto prima
   dash.initialize(video, url, true); armTimeout(id, "dash.js", next);
 }
 video.addEventListener("playing", function () { clearTimeout(startTimer); hideMsg(); showHud(""); });
@@ -506,16 +507,44 @@ video.addEventListener("error", function () {
 });
 function fail() {
   clearTimeout(startTimer); playId++;
+  // il canale andava (o la rete è giù): è la connessione, non il canale → riprova da solo
+  if ((everPlayed || navigator.onLine === false) && retryN < RETRY_S.length) return scheduleRetry();
+  cancelRetry();
   var web = LIST[current][4];
   showMsg("Questo canale non parte qui.<br>Cambia canale con su/giù oppure torna alla lista." +
+    '<br><button class="btn primary" data-a="retry"><svg><use href="#i-back"/></svg>Riprova</button>' +
     (web ? webButton("Apri sul sito ufficiale") : "") +
     '<div class="diag">' + tried.join("<br>") + "<br>" + envText() + "</div>");
   showHud("non disponibile");
 }
+// ---------- riconnessione automatica ----------
+var RETRY_S = [5, 10, 20, 30, 30, 30, 60, 60], retryN = 0, retryTimer = null, retryAt = 0, everPlayed = false;
+video.addEventListener("playing", function () { everPlayed = true; retryN = 0; });
+function cancelRetry() { clearTimeout(retryTimer); retryTimer = null; }
+function scheduleRetry() {
+  var s = RETRY_S[retryN++];
+  cancelRetry(); retryAt = Date.now() + s * 1000; retryTimer = setTimeout(retryNow, s * 1000);
+  showMsg((navigator.onLine === false ? "Connessione assente." : "Connessione persa.") +
+    '<br>Nuovo tentativo tra <b id="retry-s">' + s + "</b> s (" + retryN + " di " + RETRY_S.length + ")" +
+    '<br><button class="btn primary" data-a="retry"><svg><use href="#i-back"/></svg>Riprova ora</button>');
+  showHud("riconnessione…");
+}
+function retryNow() {
+  cancelRetry(); if (mode !== "player") return;
+  tried = []; stuck = 0; hideMsg(); showHud("riconnessione…");
+  trySource(LIST[current][3], 0);
+}
+setInterval(function () {
+  var el = document.getElementById("retry-s");
+  if (retryTimer && el) el.textContent = Math.max(0, Math.ceil((retryAt - Date.now()) / 1000));
+}, 1000);
+// se il browser segnala il ritorno della rete non aspetto il prossimo tentativo
+window.addEventListener("online", function () { if (retryTimer) retryNow(); });
+
 function showMsg(t) { var m = document.getElementById("msg"); m.innerHTML = t; m.style.display = "block"; }
 function hideMsg() { document.getElementById("msg").style.display = "none"; }
 function backToGrid() {
-  stopPlayback(); mode = "grid"; zone = "grid"; hudFocus = -1;
+  stopPlayback(); cancelRetry(); mode = "grid"; zone = "grid"; hudFocus = -1;
   document.getElementById("player-view").style.display = "none";
   document.getElementById("grid-view").style.display = "block";
   document.body.className = ""; render(); window.scrollTo(0, gridScroll);
@@ -602,6 +631,7 @@ function action(a) {
   else if (a === "sleep") cycleSleep();
   else if (a === "web") { location.href = c[4]; return; }
   else if (a === "resume") { play(current); return; }
+  else if (a === "retry") { retryN = 0; retryNow(); return; }
   if (mode === "player") showHud("");
 }
 var playerView = document.getElementById("player-view");
@@ -629,7 +659,7 @@ setInterval(function () {
   if (!sleepEnd || Date.now() < sleepEnd) return;
   sleepEnd = 0;
   if (mode !== "player") return;
-  stopPlayback(); playId++; clearTimeout(startTimer);
+  stopPlayback(); playId++; clearTimeout(startTimer); cancelRetry();
   showMsg("Timer scaduto: la riproduzione è stata fermata.<br>" +
     '<button class="btn primary" data-a="resume"><svg><use href="#i-play"/></svg>Riprendi ' + LIST[current][1] + "</button>");
   showHud("in pausa");
