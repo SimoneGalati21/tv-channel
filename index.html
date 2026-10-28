@@ -741,6 +741,18 @@ function toggleFav(n) {
 
 // ---------- telecomando ----------
 var BACK = [8, 27, 461, 10009, 166];
+// ?keys nell'indirizzo: mostra a schermo i tasti che arrivano alla pagina (nel TV Browser alcuni li prende il puntatore)
+if (/[?&]keys\b/.test(location.search)) {
+  var keyLog = document.createElement("pre");
+  keyLog.style.cssText = "position:fixed;top:1vw;left:1vw;z-index:99;background:rgba(0,0,0,.9);color:#4ade80;font:1.3vw monospace;padding:1vw;border:1px solid #4ade80;border-radius:.6vw;pointer-events:none;white-space:pre";
+  keyLog.textContent = "Premi i tasti del telecomando…";
+  document.body.appendChild(keyLog);
+  ["keydown", "keyup"].forEach(function (t) {
+    document.addEventListener(t, function (e) {
+      keyLog.textContent = (t + " " + e.keyCode + " " + (e.key || "") + "\n" + keyLog.textContent).split("\n").slice(0, 14).join("\n");
+    }, true);
+  });
+}
 document.addEventListener("keydown", function (e) {
   var k = e.keyCode;
   if (k >= 48 && k <= 57) { typeNum(String(k - 48)); e.preventDefault(); return; }
